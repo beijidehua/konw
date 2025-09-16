@@ -1,1296 +1,542 @@
-<!--<template>-->
-<!--  <div class="knowledge-container">-->
-<!--    &lt;!&ndash; 顶部操作区域 &ndash;&gt;-->
-<!--    <div class="header-actions">-->
-<!--      <div class="left">-->
-<!--        <el-input-->
-<!--          v-model="searchKeyword"-->
-<!--          placeholder="请输入知识库名称"-->
-<!--          class="search-input"-->
-<!--          @keyup.enter="handleSearch"-->
-<!--        >-->
-<!--          <template #suffix>-->
-<!--            <el-icon><Search /></el-icon>-->
-<!--          </template>-->
-<!--        </el-input>-->
-<!--      </div>-->
-<!--      <div class="right">-->
-<!--        <el-button type="primary" @click="handleAdd">-->
-<!--          <el-icon><Plus /></el-icon>新增知识库-->
-<!--        </el-button>-->
-<!--      </div>-->
-<!--    </div>-->
-
-<!--    &lt;!&ndash; 知识库列表 &ndash;&gt;-->
-<!--    <div class="knowledge-list">-->
-<!--      <el-table :data="tableData" style="width: 100%">-->
-<!--        <el-table-column prop="icon" label="" width="60">-->
-<!--          <template #default>-->
-<!--            <el-icon size="20" color="#409EFF"><Document /></el-icon>-->
-<!--          </template>-->
-<!--        </el-table-column>-->
-<!--        <el-table-column prop="title" label="知识库名称" />-->
-<!--        <el-table-column prop="creator" label="创建人" width="120" />-->
-<!--        <el-table-column prop="createTime" label="创建时间" width="180" />-->
-<!--        <el-table-column label="操作" width="180">-->
-<!--          <template #default="scope">-->
-<!--            <el-button text @click="handleEdit(scope.row)" v-auth="permission.edit">编辑</el-button>-->
-<!--            <el-button text @click="handleView(scope.row)">查看</el-button>-->
-<!--            <el-button text type="danger" @click="handleDelete(scope.row)" v-auth="permission.delete">删除</el-button>-->
-<!--          </template>-->
-<!--        </el-table-column>-->
-<!--      </el-table>-->
-
-<!--      &lt;!&ndash; 分页 &ndash;&gt;-->
-<!--      <div class="pagination">-->
-<!--        <el-pagination-->
-<!--          v-model:current-page="currentPage"-->
-<!--          v-model:page-size="pageSize"-->
-<!--          :total="total"-->
-<!--          :page-sizes="[10, 20, 50, 100]"-->
-<!--          @size-change="handleSizeChange"-->
-<!--          @current-change="handleCurrentChange"-->
-<!--          layout="total, sizes, prev, pager, next"-->
-<!--        />-->
-<!--      </div>-->
-<!--    </div>-->
-
-<!--    &lt;!&ndash; 新增/编辑对话框 &ndash;&gt;-->
-<!--    <el-dialog-->
-<!--      v-model="dialogVisible"-->
-<!--      :title="dialogTitle"-->
-<!--      width="600px"-->
-<!--      :close-on-click-modal="false"-->
-<!--    >-->
-<!--      <el-form-->
-<!--        ref="formRef"-->
-<!--        :model="formData"-->
-<!--        :rules="formRules"-->
-<!--        label-width="100px"-->
-<!--      >-->
-<!--        <el-form-item label="名称" prop="title">-->
-<!--          <el-input v-model="formData.title" placeholder="请输入知识库名称" />-->
-<!--        </el-form-item>-->
-<!--        <el-form-item label="描述" prop="description">-->
-<!--          <el-input-->
-<!--            v-model="formData.description"-->
-<!--            type="textarea"-->
-<!--            :rows="3"-->
-<!--            placeholder="请输入知识库描述"-->
-<!--          />-->
-<!--        </el-form-item>-->
-<!--        <el-form-item label="文件" prop="file">-->
-<!--          <el-upload-->
-<!--            class="upload-demo"-->
-<!--            action="/api/upload"-->
-<!--            :on-success="handleUploadSuccess"-->
-<!--            :before-upload="beforeUpload"-->
-<!--            multiple-->
-<!--            :limit="5"-->
-<!--          >-->
-<!--            <el-button type="primary">点击上传</el-button>-->
-<!--            <template #tip>-->
-<!--              <div class="el-upload__tip">支持 pdf、word、txt 格式，单个文件不超过 10MB</div>-->
-<!--            </template>-->
-<!--          </el-upload>-->
-<!--        </el-form-item>-->
-<!--      </el-form>-->
-<!--      <template #footer>-->
-<!--        <el-button @click="dialogVisible = false">取消</el-button>-->
-<!--        <el-button type="primary" @click="handleSubmit" :loading="submitLoading">确定</el-button>-->
-<!--      </template>-->
-<!--    </el-dialog>-->
-<!--  </div>-->
-<!--</template>-->
-
-<!--<script lang="ts" setup name="Knowledge">-->
-<!--import { ref, onMounted } from 'vue'-->
-<!--import type { FormInstance, FormRules, UploadProps } from 'element-plus'-->
-<!--import { Search, Plus, Document } from '@element-plus/icons-vue'-->
-<!--import { getKnowledgeList, createKnowledge, deleteKnowledge } from './api'-->
-<!--import { ElMessageBox, ElMessage } from 'element-plus'-->
-<!--import { successMessage } from '/@/utils/message'-->
-
-<!--// 权限定义-->
-<!--const permission = {-->
-<!--  add: 'knowledge:add',-->
-<!--  edit: 'knowledge:edit',-->
-<!--  delete: 'knowledge:delete'-->
-<!--}-->
-
-<!--const searchKeyword = ref('')-->
-<!--const currentPage = ref(1)-->
-<!--const pageSize = ref(10)-->
-<!--const total = ref(0)-->
-<!--const tableData = ref([])-->
-<!--// 在原有的 ref 定义下添加-->
-<!--const dialogVisible = ref(false)-->
-<!--const dialogTitle = ref('新增知识库')-->
-<!--const formRef = ref<FormInstance>()-->
-<!--const submitLoading = ref(false)-->
-
-<!--// 获取列表数据-->
-<!--const loadData = async () => {-->
-<!--  const params = {-->
-<!--    page: currentPage.value,-->
-<!--    limit: pageSize.value,-->
-<!--    keyword: searchKeyword.value-->
-<!--  }-->
-<!--  const res = await getKnowledgeList(params)-->
-<!--  tableData.value = res.data.list-->
-<!--  total.value = res.data.total-->
-<!--}-->
-<!--// 表单数据-->
-<!--const formData = ref({-->
-<!--  title: '',-->
-<!--  description: '',-->
-<!--  files: [] as string[]-->
-<!--})-->
-<!--// 表单校验规则-->
-<!--const formRules: FormRules = {-->
-<!--  title: [-->
-<!--    { required: true, message: '请输入知识库名称', trigger: 'blur' },-->
-<!--    { min: 2, max: 50, message: '长度在 2 到 50 个字符', trigger: 'blur' }-->
-<!--  ],-->
-<!--  description: [-->
-<!--    { required: true, message: '请输入知识库描述', trigger: 'blur' }-->
-<!--  ]-->
-<!--}-->
-<!--// 文件上传前的验证-->
-<!--const beforeUpload: UploadProps['beforeUpload'] = (file) => {-->
-<!--  const allowTypes = ['application/pdf', 'application/msword', 'text/plain']-->
-<!--  const isValidType = allowTypes.includes(file.type)-->
-<!--  if (!isValidType) {-->
-<!--    ElMessage.error('只能上传 PDF/Word/TXT 格式的文件!')-->
-<!--    return false-->
-<!--  }-->
-
-<!--  const isLt10M = file.size / 1024 / 1024 < 10-->
-<!--  if (!isLt10M) {-->
-<!--    ElMessage.error('文件大小不能超过 10MB!')-->
-<!--    return false-->
-<!--  }-->
-<!--  return true-->
-<!--}-->
-<!--// 文件上传成功的回调-->
-<!--const handleUploadSuccess: UploadProps['onSuccess'] = (response) => {-->
-<!--  formData.value.files.push(response.data)-->
-<!--}-->
-<!--// 搜索-->
-<!--const handleSearch = () => {-->
-<!--  currentPage.value = 1-->
-<!--  loadData()-->
-<!--}-->
-
-<!--// 新增-->
-<!--// 修改原有的 handleAdd 方法-->
-<!--const handleAdd = () => {-->
-<!--  dialogVisible.value = true-->
-<!--  dialogTitle.value = '新增知识库'-->
-<!--  formData.value = {-->
-<!--    title: '',-->
-<!--    description: ''-->
-<!--  }-->
-<!--}-->
-<!--// 表单提交-->
-<!--const handleSubmit = async () => {-->
-<!--  if (!formRef.value) return-->
-
-<!--  await formRef.value.validate(async (valid) => {-->
-<!--    if (valid) {-->
-<!--      submitLoading.value = true-->
-<!--      try {-->
-<!--        await createKnowledge(formData.value)-->
-<!--        successMessage('创建成功')-->
-<!--        dialogVisible.value = false-->
-<!--        loadData()-->
-<!--      } catch (error) {-->
-<!--        console.error(error)-->
-<!--      } finally {-->
-<!--        submitLoading.value = false-->
-<!--      }-->
-<!--    }-->
-<!--  })-->
-<!--}-->
-<!--// 编辑-->
-<!--const handleEdit = (row) => {-->
-<!--  router.push(`/system/knowledge/edit?id=${row.id}`)-->
-<!--}-->
-
-<!--// 查看-->
-<!--const handleView = (row) => {-->
-<!--  router.push(`/system/knowledge/view?id=${row.id}`)-->
-<!--}-->
-
-<!--// 删除-->
-<!--const handleDelete = async (row) => {-->
-<!--  await ElMessageBox.confirm('确认删除该知识库?', '提示', {-->
-<!--    type: 'warning'-->
-<!--  })-->
-<!--  await deleteKnowledge(row.id)-->
-<!--  successMessage('删除成功')-->
-<!--  loadData()-->
-<!--}-->
-
-<!--// 分页-->
-<!--const handleSizeChange = (val: number) => {-->
-<!--  pageSize.value = val-->
-<!--  loadData()-->
-<!--}-->
-
-<!--const handleCurrentChange = (val: number) => {-->
-<!--  currentPage.value = val-->
-<!--  loadData()-->
-<!--}-->
-
-<!--onMounted(() => {-->
-<!--  loadData()-->
-<!--})-->
-<!--</script>-->
-
-<!--<style lang="scss" scoped>-->
-<!--.knowledge-container {-->
-<!--  padding: 20px;-->
-<!--  background: #f5f7fa;-->
-<!--  min-height: calc(100vh - 84px);-->
-
-<!--  .header-actions {-->
-<!--    display: flex;-->
-<!--    justify-content: space-between;-->
-<!--    align-items: center;-->
-<!--    margin-bottom: 16px;-->
-
-<!--    .left {-->
-<!--      .search-input {-->
-<!--        width: 300px;-->
-<!--      }-->
-<!--    }-->
-<!--  }-->
-
-<!--  .knowledge-list {-->
-<!--    background: #fff;-->
-<!--    padding: 20px;-->
-<!--    border-radius: 4px;-->
-<!--  }-->
-
-<!--  .pagination {-->
-<!--    margin-top: 16px;-->
-<!--    display: flex;-->
-<!--    justify-content: flex-end;-->
-<!--  }-->
-<!--}-->
-
-<!--.upload-demo {-->
-<!--  :deep(.el-upload-list) {-->
-<!--    width: 100%;-->
-<!--  }-->
-<!--}-->
-<!--</style>-->
-
-
-
-<!--&lt;!&ndash;222&ndash;&gt;-->
-<!--<template>-->
-<!--  <div class="knowledge-container">-->
-<!--    &lt;!&ndash; 顶部操作区域 &ndash;&gt;-->
-<!--    <div class="header-actions">-->
-<!--      <div class="left">-->
-<!--        <el-input-->
-<!--          v-model="searchKeyword"-->
-<!--          placeholder="请输入知识库名称"-->
-<!--          class="search-input"-->
-<!--          @keyup.enter="handleSearch"-->
-<!--        >-->
-<!--          <template #suffix>-->
-<!--            <el-icon><Search /></el-icon>-->
-<!--          </template>-->
-<!--        </el-input>-->
-<!--      </div>-->
-<!--      <div class="right">-->
-<!--        <el-button type="primary" @click="handleAdd">-->
-<!--          <el-icon><Plus /></el-icon>新增知识库-->
-<!--        </el-button>-->
-<!--      </div>-->
-<!--    </div>-->
-
-<!--    &lt;!&ndash; 知识库列表 &ndash;&gt;-->
-<!--    <div class="knowledge-list">-->
-<!--      <el-table :data="tableData" style="width: 100%">-->
-<!--        <el-table-column prop="icon" label="" width="60">-->
-<!--          <template #default>-->
-<!--            <el-icon size="20" color="#409EFF"><Document /></el-icon>-->
-<!--          </template>-->
-<!--        </el-table-column>-->
-<!--        <el-table-column prop="title" label="知识库名称" />-->
-<!--        <el-table-column prop="category" label="分类" width="120" />-->
-<!--        <el-table-column prop="visibility" label="可见范围" width="120" />-->
-<!--        <el-table-column prop="creator" label="创建人" width="120" />-->
-<!--        <el-table-column prop="createTime" label="创建时间" width="180" />-->
-<!--        <el-table-column label="操作" width="180">-->
-<!--          <template #default="scope">-->
-<!--            <el-button text @click="handleEdit(scope.row)" v-auth="permission.edit">编辑</el-button>-->
-<!--            <el-button text @click="handleView(scope.row)">查看</el-button>-->
-<!--            <el-button text type="danger" @click="handleDelete(scope.row)" v-auth="permission.delete">删除</el-button>-->
-<!--          </template>-->
-<!--        </el-table-column>-->
-<!--      </el-table>-->
-
-<!--      &lt;!&ndash; 分页 &ndash;&gt;-->
-<!--      <div class="pagination">-->
-<!--        <el-pagination-->
-<!--          v-model:current-page="currentPage"-->
-<!--          v-model:page-size="pageSize"-->
-<!--          :total="total"-->
-<!--          :page-sizes="[10, 20, 50, 100]"-->
-<!--          @size-change="handleSizeChange"-->
-<!--          @current-change="handleCurrentChange"-->
-<!--          layout="total, sizes, prev, pager, next"-->
-<!--        />-->
-<!--      </div>-->
-<!--    </div>-->
-
-<!--    &lt;!&ndash; 新增/编辑对话框 &ndash;&gt;-->
-<!--    <el-dialog-->
-<!--      v-model="dialogVisible"-->
-<!--      :title="dialogTitle"-->
-<!--      width="600px"-->
-<!--      :close-on-click-modal="false"-->
-<!--    >-->
-<!--      <el-form-->
-<!--        ref="formRef"-->
-<!--        :model="formData"-->
-<!--        :rules="formRules"-->
-<!--        label-width="100px"-->
-<!--      >-->
-<!--        <el-form-item label="知识库名称" prop="title">-->
-<!--          <el-input v-model="formData.title" placeholder="请输入知识库名称" />-->
-<!--        </el-form-item>-->
-<!--        <el-form-item label="知识库分类" prop="category">-->
-<!--          <el-select v-model="formData.category" placeholder="请选择知识库分类">-->
-<!--            <el-option label="技术文档" value="tech" />-->
-<!--            <el-option label="产品说明" value="product" />-->
-<!--            <el-option label="操作指南" value="guide" />-->
-<!--            <el-option label="常见问题" value="faq" />-->
-<!--            <el-option label="其他" value="other" />-->
-<!--          </el-select>-->
-<!--        </el-form-item>-->
-<!--        <el-form-item label="可见范围" prop="visibility">-->
-<!--          <el-radio-group v-model="formData.visibility">-->
-<!--            <el-radio label="public">公共</el-radio>-->
-<!--            <el-radio label="private">私密</el-radio>-->
-<!--          </el-radio-group>-->
-<!--          <div class="visibility-tips">-->
-<!--            <div v-if="formData.visibility === 'public'">-->
-<!--              公共知识库，初次创建后所有人可查看，仅自己可编辑，其余人员可申请编辑权限。-->
-<!--            </div>-->
-<!--            <div v-else>-->
-<!--              私密知识库，初次创建后仅自己可查看，仅自己可编辑，其余人员可申请查看权限。-->
-<!--            </div>-->
-<!--          </div>-->
-<!--        </el-form-item>-->
-<!--        <el-form-item label="知识库描述" prop="description">-->
-<!--          <el-input-->
-<!--            v-model="formData.description"-->
-<!--            type="textarea"-->
-<!--            :rows="3"-->
-<!--            placeholder="请输入知识库描述"-->
-<!--          />-->
-<!--        </el-form-item>-->
-<!--      </el-form>-->
-<!--      <template #footer>-->
-<!--        <el-button @click="dialogVisible = false">取消</el-button>-->
-<!--        <el-button type="primary" @click="handleSubmit" :loading="submitLoading">确认</el-button>-->
-<!--      </template>-->
-<!--    </el-dialog>-->
-<!--  </div>-->
-<!--</template>-->
-
-<!--<script lang="ts" setup name="Knowledge">-->
-<!--import { ref, onMounted } from 'vue'-->
-<!--import type { FormInstance, FormRules } from 'element-plus'-->
-<!--import { Search, Plus, Document } from '@element-plus/icons-vue'-->
-<!--import { getKnowledgeList, createKnowledge, deleteKnowledge } from './api'-->
-<!--import { ElMessageBox, ElMessage } from 'element-plus'-->
-<!--import { successMessage } from '/@/utils/message'-->
-
-<!--// 权限定义-->
-<!--const permission = {-->
-<!--  add: 'knowledge:add',-->
-<!--  edit: 'knowledge:edit',-->
-<!--  delete: 'knowledge:delete'-->
-<!--}-->
-
-<!--const searchKeyword = ref('')-->
-<!--const currentPage = ref(1)-->
-<!--const pageSize = ref(10)-->
-<!--const total = ref(0)-->
-<!--const tableData = ref([])-->
-<!--const dialogVisible = ref(false)-->
-<!--const dialogTitle = ref('新建知识库')-->
-<!--const formRef = ref<FormInstance>()-->
-<!--const submitLoading = ref(false)-->
-
-<!--// 获取列表数据-->
-<!--const loadData = async () => {-->
-<!--  const params = {-->
-<!--    page: currentPage.value,-->
-<!--    limit: pageSize.value,-->
-<!--    keyword: searchKeyword.value-->
-<!--  }-->
-<!--  const res = await getKnowledgeList(params)-->
-<!--  tableData.value = res.data.list-->
-<!--  total.value = res.data.total-->
-<!--}-->
-
-<!--// 表单数据-->
-<!--const formData = ref({-->
-<!--  title: '',-->
-<!--  category: '',-->
-<!--  visibility: 'public',-->
-<!--  description: ''-->
-<!--})-->
-
-<!--// 表单校验规则-->
-<!--const formRules: FormRules = {-->
-<!--  title: [-->
-<!--    { required: true, message: '请输入知识库名称', trigger: 'blur' },-->
-<!--    { min: 2, max: 50, message: '长度在 2 到 50 个字符', trigger: 'blur' }-->
-<!--  ],-->
-<!--  category: [-->
-<!--    { required: true, message: '请选择知识库分类', trigger: 'change' }-->
-<!--  ],-->
-<!--  visibility: [-->
-<!--    { required: true, message: '请选择可见范围', trigger: 'change' }-->
-<!--  ],-->
-<!--  description: [-->
-<!--    { required: true, message: '请输入知识库描述', trigger: 'blur' }-->
-<!--  ]-->
-<!--}-->
-
-<!--// 搜索-->
-<!--const handleSearch = () => {-->
-<!--  currentPage.value = 1-->
-<!--  loadData()-->
-<!--}-->
-
-<!--// 新增-->
-<!--const handleAdd = () => {-->
-<!--  dialogVisible.value = true-->
-<!--  dialogTitle.value = '新建知识库'-->
-<!--  formData.value = {-->
-<!--    title: '',-->
-<!--    category: '',-->
-<!--    visibility: 'public',-->
-<!--    description: ''-->
-<!--  }-->
-<!--}-->
-
-<!--// 表单提交-->
-<!--const handleSubmit = async () => {-->
-<!--  if (!formRef.value) return-->
-
-<!--  await formRef.value.validate(async (valid) => {-->
-<!--    if (valid) {-->
-<!--      submitLoading.value = true-->
-<!--      try {-->
-<!--        await createKnowledge(formData.value)-->
-<!--        successMessage('创建成功')-->
-<!--        dialogVisible.value = false-->
-<!--        loadData()-->
-<!--      } catch (error) {-->
-<!--        console.error(error)-->
-<!--      } finally {-->
-<!--        submitLoading.value = false-->
-<!--      }-->
-<!--    }-->
-<!--  })-->
-<!--}-->
-
-<!--// 编辑-->
-<!--const handleEdit = (row) => {-->
-<!--  // 这里需要实现编辑功能-->
-<!--  console.log('编辑', row)-->
-<!--}-->
-
-<!--// 查看-->
-<!--const handleView = (row) => {-->
-<!--  // 这里需要实现查看功能-->
-<!--  console.log('查看', row)-->
-<!--}-->
-
-<!--// 删除-->
-<!--const handleDelete = async (row) => {-->
-<!--  await ElMessageBox.confirm('确认删除该知识库?', '提示', {-->
-<!--    type: 'warning'-->
-<!--  })-->
-<!--  await deleteKnowledge(row.id)-->
-<!--  successMessage('删除成功')-->
-<!--  loadData()-->
-<!--}-->
-
-<!--// 分页-->
-<!--const handleSizeChange = (val: number) => {-->
-<!--  pageSize.value = val-->
-<!--  loadData()-->
-<!--}-->
-
-<!--const handleCurrentChange = (val: number) => {-->
-<!--  currentPage.value = val-->
-<!--  loadData()-->
-<!--}-->
-
-<!--onMounted(() => {-->
-<!--  loadData()-->
-<!--})-->
-<!--</script>-->
-
-<!--<style lang="scss" scoped>-->
-<!--.knowledge-container {-->
-<!--  padding: 20px;-->
-<!--  background: #f5f7fa;-->
-<!--  min-height: calc(100vh - 84px);-->
-
-<!--  .header-actions {-->
-<!--    display: flex;-->
-<!--    justify-content: space-between;-->
-<!--    align-items: center;-->
-<!--    margin-bottom: 16px;-->
-
-<!--    .left {-->
-<!--      .search-input {-->
-<!--        width: 300px;-->
-<!--      }-->
-<!--    }-->
-<!--  }-->
-
-<!--  .knowledge-list {-->
-<!--    background: #fff;-->
-<!--    padding: 20px;-->
-<!--    border-radius: 4px;-->
-<!--  }-->
-
-<!--  .pagination {-->
-<!--    margin-top: 16px;-->
-<!--    display: flex;-->
-<!--    justify-content: flex-end;-->
-<!--  }-->
-<!--}-->
-
-<!--.visibility-tips {-->
-<!--  margin-top: 8px;-->
-<!--  font-size: 12px;-->
-<!--  color: #909399;-->
-<!--  line-height: 1.5;-->
-<!--}-->
-<!--</style>-->
-
-
-
-<!--333-->
-<!--<template>-->
-<!--  <div class="knowledge-container">-->
-<!--    &lt;!&ndash; 顶部操作区域 &ndash;&gt;-->
-<!--    <div class="header-actions">-->
-<!--      <div class="left">-->
-<!--        <el-input-->
-<!--          v-model="searchKeyword"-->
-<!--          placeholder="请输入知识库名称"-->
-<!--          class="search-input"-->
-<!--          @keyup.enter="handleSearch"-->
-<!--        >-->
-<!--          <template #suffix>-->
-<!--            <el-icon><Search /></el-icon>-->
-<!--          </template>-->
-<!--        </el-input>-->
-<!--      </div>-->
-<!--      <div class="right">-->
-<!--        <el-button type="primary" @click="handleAdd">-->
-<!--          <el-icon><Plus /></el-icon>新增知识库-->
-<!--        </el-button>-->
-<!--      </div>-->
-<!--    </div>-->
-
-<!--    &lt;!&ndash; 知识库列表 &ndash;&gt;-->
-<!--    <div class="knowledge-list">-->
-<!--      <el-table :data="tableData" style="width: 100%">-->
-<!--        <el-table-column prop="icon" label="" width="60">-->
-<!--          <template #default>-->
-<!--            <el-icon size="20" color="#409EFF"><Document /></el-icon>-->
-<!--          </template>-->
-<!--        </el-table-column>-->
-<!--        <el-table-column prop="title" label="知识库名称" />-->
-<!--        <el-table-column prop="category" label="分类" width="120" />-->
-<!--        <el-table-column prop="visibility" label="可见范围" width="120" />-->
-<!--        <el-table-column prop="creator" label="创建人" width="120" />-->
-<!--        <el-table-column prop="createTime" label="创建时间" width="180" />-->
-<!--        <el-table-column label="操作" width="180">-->
-<!--          <template #default="scope">-->
-<!--            <el-button text @click="handleEdit(scope.row)" v-auth="permission.edit">编辑</el-button>-->
-<!--            <el-button text @click="handleView(scope.row)">查看</el-button>-->
-<!--            <el-button text type="danger" @click="handleDelete(scope.row)" v-auth="permission.delete">删除</el-button>-->
-<!--          </template>-->
-<!--        </el-table-column>-->
-<!--      </el-table>-->
-
-<!--      &lt;!&ndash; 分页 &ndash;&gt;-->
-<!--      <div class="pagination">-->
-<!--        <el-pagination-->
-<!--          v-model:current-page="currentPage"-->
-<!--          v-model:page-size="pageSize"-->
-<!--          :total="total"-->
-<!--          :page-sizes="[10, 20, 50, 100]"-->
-<!--          @size-change="handleSizeChange"-->
-<!--          @current-change="handleCurrentChange"-->
-<!--          layout="total, sizes, prev, pager, next"-->
-<!--        />-->
-<!--      </div>-->
-<!--    </div>-->
-
-<!--    &lt;!&ndash; 新增/编辑对话框 &ndash;&gt;-->
-<!--    <el-dialog-->
-<!--      v-model="dialogVisible"-->
-<!--      :title="dialogTitle"-->
-<!--      width="600px"-->
-<!--      :close-on-click-modal="false"-->
-<!--    >-->
-<!--      <el-form-->
-<!--        ref="formRef"-->
-<!--        :model="formData"-->
-<!--        :rules="formRules"-->
-<!--        label-width="100px"-->
-<!--      >-->
-<!--        <el-form-item label="知识库名称" prop="title">-->
-<!--          <el-input v-model="formData.title" placeholder="请输入知识库名称" />-->
-<!--        </el-form-item>-->
-<!--        <el-form-item label="知识库分类" prop="category">-->
-<!--          <el-select v-model="formData.category" placeholder="请选择知识库分类">-->
-<!--            <el-option label="技术文档" value="tech" />-->
-<!--            <el-option label="产品说明" value="product" />-->
-<!--            <el-option label="操作指南" value="guide" />-->
-<!--            <el-option label="常见问题" value="faq" />-->
-<!--            <el-option label="其他" value="other" />-->
-<!--          </el-select>-->
-<!--        </el-form-item>-->
-<!--        <el-form-item label="可见范围" prop="visibility">-->
-<!--          <div class="visibility-options">-->
-<!--            <div class="visibility-option">-->
-<!--              <el-radio v-model="formData.visibility" label="public" class="visibility-radio">-->
-<!--                公共-->
-<!--              </el-radio>-->
-<!--              <div class="visibility-description">-->
-<!--                公共知识库，初次创建后所有人员可查看，仅自己可编辑，其余人员可申请编辑权限。-->
-<!--              </div>-->
-<!--            </div>-->
-<!--            <div class="visibility-option">-->
-<!--              <el-radio v-model="formData.visibility" label="private" class="visibility-radio">-->
-<!--                私密-->
-<!--              </el-radio>-->
-<!--              <div class="visibility-description">-->
-<!--                私密知识库，初次创建后仅自己可查看，仅自己可编辑，其余人员可申请查看权限。-->
-<!--              </div>-->
-<!--            </div>-->
-<!--          </div>-->
-<!--        </el-form-item>-->
-<!--        <el-form-item label="知识库描述" prop="description">-->
-<!--          <el-input-->
-<!--            v-model="formData.description"-->
-<!--            type="textarea"-->
-<!--            :rows="3"-->
-<!--            placeholder="请输入知识库描述"-->
-<!--          />-->
-<!--        </el-form-item>-->
-<!--      </el-form>-->
-<!--      <template #footer>-->
-<!--        <el-button @click="dialogVisible = false">取消</el-button>-->
-<!--        <el-button type="primary" @click="handleSubmit" :loading="submitLoading">确认</el-button>-->
-<!--      </template>-->
-<!--    </el-dialog>-->
-<!--  </div>-->
-<!--</template>-->
-
-<!--<script lang="ts" setup name="Knowledge">-->
-<!--import { ref, onMounted } from 'vue'-->
-<!--import type { FormInstance, FormRules } from 'element-plus'-->
-<!--import { Search, Plus, Document } from '@element-plus/icons-vue'-->
-<!--import { getKnowledgeList, createKnowledge, deleteKnowledge } from './api'-->
-<!--import { ElMessageBox, ElMessage } from 'element-plus'-->
-<!--import { successMessage } from '/@/utils/message'-->
-
-<!--// 权限定义-->
-<!--const permission = {-->
-<!--  add: 'knowledge:add',-->
-<!--  edit: 'knowledge:edit',-->
-<!--  delete: 'knowledge:delete'-->
-<!--}-->
-
-<!--const searchKeyword = ref('')-->
-<!--const currentPage = ref(1)-->
-<!--const pageSize = ref(10)-->
-<!--const total = ref(0)-->
-<!--const tableData = ref([])-->
-<!--const dialogVisible = ref(false)-->
-<!--const dialogTitle = ref('新建知识库')-->
-<!--const formRef = ref<FormInstance>()-->
-<!--const submitLoading = ref(false)-->
-
-<!--// 获取列表数据-->
-<!--const loadData = async () => {-->
-<!--  const params = {-->
-<!--    page: currentPage.value,-->
-<!--    limit: pageSize.value,-->
-<!--    keyword: searchKeyword.value-->
-<!--  }-->
-<!--  const res = await getKnowledgeList(params)-->
-<!--  tableData.value = res.data.list-->
-<!--  total.value = res.data.total-->
-<!--}-->
-
-<!--// 表单数据-->
-<!--const formData = ref({-->
-<!--  title: '',-->
-<!--  category: '',-->
-<!--  visibility: 'public',-->
-<!--  description: ''-->
-<!--})-->
-
-<!--// 表单校验规则-->
-<!--const formRules: FormRules = {-->
-<!--  title: [-->
-<!--    { required: true, message: '请输入知识库名称', trigger: 'blur' },-->
-<!--    { min: 2, max: 50, message: '长度在 2 到 50 个字符', trigger: 'blur' }-->
-<!--  ],-->
-<!--  category: [-->
-<!--    { required: true, message: '请选择知识库分类', trigger: 'change' }-->
-<!--  ],-->
-<!--  visibility: [-->
-<!--    { required: true, message: '请选择可见范围', trigger: 'change' }-->
-<!--  ],-->
-<!--  description: [-->
-<!--    { required: true, message: '请输入知识库描述', trigger: 'blur' }-->
-<!--  ]-->
-<!--}-->
-
-<!--// 搜索-->
-<!--const handleSearch = () => {-->
-<!--  currentPage.value = 1-->
-<!--  loadData()-->
-<!--}-->
-
-<!--// 新增-->
-<!--const handleAdd = () => {-->
-<!--  dialogVisible.value = true-->
-<!--  dialogTitle.value = '新建知识库'-->
-<!--  formData.value = {-->
-<!--    title: '',-->
-<!--    category: '',-->
-<!--    visibility: 'public',-->
-<!--    description: ''-->
-<!--  }-->
-<!--}-->
-
-<!--// 表单提交-->
-<!--const handleSubmit = async () => {-->
-<!--  if (!formRef.value) return-->
-
-<!--  await formRef.value.validate(async (valid) => {-->
-<!--    if (valid) {-->
-<!--      submitLoading.value = true-->
-<!--      try {-->
-<!--        await createKnowledge(formData.value)-->
-<!--        successMessage('创建成功')-->
-<!--        dialogVisible.value = false-->
-<!--        loadData()-->
-<!--      } catch (error) {-->
-<!--        console.error(error)-->
-<!--      } finally {-->
-<!--        submitLoading.value = false-->
-<!--      }-->
-<!--    }-->
-<!--  })-->
-<!--}-->
-
-<!--// 编辑-->
-<!--const handleEdit = (row) => {-->
-<!--  // 这里需要实现编辑功能-->
-<!--  console.log('编辑', row)-->
-<!--}-->
-
-<!--// 查看-->
-<!--const handleView = (row) => {-->
-<!--  // 这里需要实现查看功能-->
-<!--  console.log('查看', row)-->
-<!--}-->
-
-<!--// 删除-->
-<!--const handleDelete = async (row) => {-->
-<!--  await ElMessageBox.confirm('确认删除该知识库?', '提示', {-->
-<!--    type: 'warning'-->
-<!--  })-->
-<!--  await deleteKnowledge(row.id)-->
-<!--  successMessage('删除成功')-->
-<!--  loadData()-->
-<!--}-->
-
-<!--// 分页-->
-<!--const handleSizeChange = (val: number) => {-->
-<!--  pageSize.value = val-->
-<!--  loadData()-->
-<!--}-->
-
-<!--const handleCurrentChange = (val: number) => {-->
-<!--  currentPage.value = val-->
-<!--  loadData()-->
-<!--}-->
-
-<!--onMounted(() => {-->
-<!--  loadData()-->
-<!--})-->
-<!--</script>-->
-
-<!--<style lang="scss" scoped>-->
-<!--.knowledge-container {-->
-<!--  padding: 20px;-->
-<!--  background: #f5f7fa;-->
-<!--  min-height: calc(100vh - 84px);-->
-
-<!--  .header-actions {-->
-<!--    display: flex;-->
-<!--    justify-content: space-between;-->
-<!--    align-items: center;-->
-<!--    margin-bottom: 16px;-->
-
-<!--    .left {-->
-<!--      .search-input {-->
-<!--        width: 300px;-->
-<!--      }-->
-<!--    }-->
-<!--  }-->
-
-<!--  .knowledge-list {-->
-<!--    background: #fff;-->
-<!--    padding: 20px;-->
-<!--    border-radius: 4px;-->
-<!--  }-->
-
-<!--  .pagination {-->
-<!--    margin-top: 16px;-->
-<!--    display: flex;-->
-<!--    justify-content: flex-end;-->
-<!--  }-->
-<!--}-->
-
-<!--.visibility-options {-->
-<!--  .visibility-option {-->
-<!--    margin-bottom: 16px;-->
-<!--    display: flex;-->
-<!--    align-items: flex-start;-->
-
-<!--    .visibility-radio {-->
-<!--      margin-top: 2px;-->
-<!--      margin-right: 12px;-->
-<!--      flex-shrink: 0;-->
-
-<!--      :deep(.el-radio__label) {-->
-<!--        font-weight: 500;-->
-<!--      }-->
-<!--    }-->
-
-<!--    .visibility-description {-->
-<!--      font-size: 13px;-->
-<!--      color: #606266;-->
-<!--      line-height: 1.5;-->
-<!--      padding-top: 2px;-->
-<!--    }-->
-
-<!--    &:last-child {-->
-<!--      margin-bottom: 0;-->
-<!--    }-->
-<!--  }-->
-<!--}-->
-<!--</style>-->
-
-
-
-<!--444-->
 <template>
-  <div class="knowledge-container">
-    <!-- 顶部操作区域 -->
-    <div class="header-actions">
-      <div class="left">
-        <el-input
-          v-model="searchKeyword"
-          placeholder="请输入知识库名称"
-          class="search-input"
-          @keyup.enter="handleSearch"
-        >
-          <template #suffix>
-            <el-icon><Search /></el-icon>
-          </template>
-        </el-input>
-      </div>
-      <div class="right">
-        <el-button type="primary" @click="handleAdd">
-          <el-icon><Plus /></el-icon>新增知识库
-        </el-button>
-      </div>
+  <div class="repository-list-container">
+    <!-- 页面标题 + 新增按钮 -->
+    <div class="page-header">
+      <el-page-header content="知识库管理" />
+      <el-button type="primary" @click="handleAdd">新增知识库</el-button>
     </div>
 
-    <!-- 知识库列表 -->
-    <div class="knowledge-list">
-      <el-table :data="tableData" style="width: 100%">
-        <el-table-column prop="icon" label="" width="60">
-          <template #default>
-            <el-icon size="20" color="#409EFF"><Document /></el-icon>
-          </template>
-        </el-table-column>
-        <el-table-column prop="title" label="知识库名称" />
-        <el-table-column prop="category" label="分类" width="120" />
-        <el-table-column prop="visibility" label="可见范围" width="120">
-          <template #default="scope">
-            <span v-if="scope.row.visibility === 'public'">公共</span>
-            <span v-else>私密</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="creator" label="创建人" width="120" />
-        <el-table-column prop="createTime" label="创建时间" width="180" />
-        <el-table-column label="操作" width="180">
-          <template #default="scope">
-            <el-button text @click="handleEdit(scope.row)" v-auth="permission.edit">编辑</el-button>
-            <el-button text @click="handleView(scope.row)">查看</el-button>
-            <el-button text type="danger" @click="handleDelete(scope.row)" v-auth="permission.delete">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <!-- 分页 -->
-      <div class="pagination">
-        <el-pagination
-          v-model:current-page="currentPage"
-          v-model:page-size="pageSize"
-          :total="total"
-          :page-sizes="[10, 20, 50, 100]"
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
-          layout="total, sizes, prev, pager, next"
-        />
-      </div>
-    </div>
-
-    <!-- 新增/编辑对话框 -->
-    <el-dialog
-      v-model="dialogVisible"
-      :title="dialogTitle"
-      width="700px"
-      :close-on-click-modal="false"
-    >
-      <el-form
-        ref="formRef"
-        :model="formData"
-        :rules="formRules"
-        label-width="100px"
-      >
-        <el-form-item label="知识库名称" prop="title">
-          <el-input v-model="formData.title" placeholder="请输入知识库名称" />
-        </el-form-item>
-        <el-form-item label="知识库分类" prop="category">
-          <el-select v-model="formData.category" placeholder="请选择知识库分类">
-            <el-option label="技术文档" value="tech" />
-            <el-option label="产品说明" value="product" />
-            <el-option label="操作指南" value="guide" />
-            <el-option label="常见问题" value="faq" />
-            <el-option label="其他" value="other" />
+    <!-- 筛选条件 -->
+    <el-card shadow="hover" class="filter-card">
+      <el-form :model="filterForm" inline label-width="100px">
+        <!-- 状态筛选 -->
+        <el-form-item label="知识库状态">
+          <el-select
+            v-model="filterForm.status"
+            placeholder="全部状态"
+            @change="fetchRepoList"
+          >
+            <el-option label="全部" value="" />
+            <el-option label="正常" value="normal" />
+            <el-option label="归档" value="archived" />
           </el-select>
         </el-form-item>
-        <el-form-item label="可见范围" prop="visibility">
-          <div class="visibility-container">
-            <div
-              class="visibility-option"
-              :class="{ 'selected': formData.visibility === 'public' }"
-              @click="formData.visibility = 'public'"
-            >
-              <div class="option-header">
-                <div class="radio-circle">
-                  <div class="inner-circle" v-if="formData.visibility === 'public'"></div>
-                </div>
-                <span class="option-title">公共</span>
-              </div>
-              <div class="option-description">
-                公共知识库，初次创建后所有人员可查看，仅自己可编辑，其余人员可申请编辑权限。
-              </div>
-            </div>
+        <!-- 类型筛选 -->
+        <el-form-item label="知识库类型">
+          <el-select
+            v-model="filterForm.type_id"
+            placeholder="全部类型"
+            @change="fetchRepoList"
+          >
+            <el-option label="全部" value="" />
+            <el-option label="产品文档" value="1" />
+            <el-option label="技术文档" value="2" />
+            <el-option label="培训资料" value="3" />
+          </el-select>
+        </el-form-item>
+        <!-- 搜索框 -->
+        <el-form-item>
+          <el-input
+            v-model="filterForm.search"
+            placeholder="搜索知识库名称/描述"
+            @keyup.enter="fetchRepoList"
+            clearable
+          >
+            <template #append>
+              <el-button icon="el-icon-search" @click="fetchRepoList" />
+            </template>
+          </el-input>
+        </el-form-item>
+      </el-form>
+    </el-card>
 
-            <div
-              class="visibility-option"
-              :class="{ 'selected': formData.visibility === 'private' }"
-              @click="formData.visibility = 'private'"
-            >
-              <div class="option-header">
-                <div class="radio-circle">
-                  <div class="inner-circle" v-if="formData.visibility === 'private'"></div>
-                </div>
-                <span class="option-title">私密</span>
-              </div>
-              <div class="option-description">
-                私密知识库，初次创建后仅自己可查看，仅自己可编辑，其余人员可申请查看权限。
-              </div>
-            </div>
-          </div>
+    <!-- 知识库列表 -->
+    <el-table
+      v-loading="loading"
+      :data="repoList"
+      border
+      stripe
+      row-key="id"
+      style="width: 100%; margin-top: 16px"
+    >
+      <el-table-column label="ID" prop="id" width="80" align="center" />
+      <el-table-column label="知识库名称" prop="name">
+        <template #default="scope">
+          <el-link @click="handleViewDetail(scope.row.id)">{{ scope.row.name }}</el-link>
+        </template>
+      </el-table-column>
+      <el-table-column label="类型" prop="type_id" width="120" align="center">
+        <template #default="scope">
+          <el-tag :type="getTypeTagType(scope.row.type_id)">
+            {{ getTypeName(scope.row.type_id) }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="负责人ID" prop="master" width="120" align="center" />
+      <el-table-column label="可见范围" prop="limits_label" width="140" align="center">
+        <template #default="scope">
+          <el-tag :type="scope.row.limits === 0 ? 'success' : 'info'">
+            {{ scope.row.limits_label }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="状态" prop="status_label" width="120" align="center">
+        <template #default="scope">
+          <el-tag
+            :type="
+              scope.row.status === 'normal'
+                ? 'success'
+                : scope.row.recycle === 1
+                  ? 'danger'
+                  : 'warning'
+            "
+          >
+            {{ scope.row.status_label }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="创建时间" prop="create_time" width="200" align="center" />
+      <el-table-column label="操作" width="240" align="center">
+        <template #default="scope">
+          <!-- 编辑按钮 -->
+          <el-button
+            type="text"
+            icon="el-icon-edit"
+            @click="handleEdit(scope.row)"
+            :disabled="scope.row.recycle === 1"
+          >
+            编辑
+          </el-button>
+          <!-- 归档/恢复按钮 -->
+          <el-button
+            type="text"
+            :icon="scope.row.status === 'normal' ? 'el-icon-box' : 'el-icon-refresh-left'"
+            :color="scope.row.status === 'normal' ? 'warning' : 'success'"
+            @click="handleArchiveOrRestore(scope.row.id, scope.row.status)"
+            :disabled="scope.row.recycle === 1"
+          >
+            {{ scope.row.status === 'normal' ? '归档' : '恢复正常' }}
+          </el-button>
+          <!-- 排序按钮（仅正常状态可排序） -->
+          <el-button
+            type="text"
+            icon="el-icon-top"
+            @click="handleSort(scope.row.id, 'up')"
+            :disabled="scope.row.status !== 'normal' || scope.row.recycle === 1"
+          />
+          <el-button
+            type="text"
+            icon="el-icon-bottom"
+            @click="handleSort(scope.row.id, 'down')"
+            :disabled="scope.row.status !== 'normal' || scope.row.recycle === 1"
+          />
+          <!-- 删除/回收按钮 -->
+          <el-button
+            type="text"
+            icon="el-icon-delete"
+            color="danger"
+            @click="handleDelete(scope.row.id)"
+          >
+            {{ scope.row.recycle === 1 ? '彻底删除' : '移至回收站' }}
+          </el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <!-- 分页 -->
+    <el-pagination
+      v-if="total > 0"
+      :current-page="pageNum"
+      :page-size="pageSize"
+      :total="total"
+      layout="total, sizes, prev, pager, next, jumper"
+      @size-change="handlePageSizeChange"
+      @current-change="handlePageNumChange"
+      style="margin-top: 16px; text-align: right"
+    />
+
+    <!-- 新增/编辑弹窗 -->
+    <el-dialog
+      v-model="dialogVisible"
+      :title="dialogType === 'add' ? '新增知识库' : '编辑知识库'"
+      width="600px"
+    >
+      <el-form
+        ref="repoFormRef"
+        :model="repoForm"
+        label-width="120px"
+        :rules="repoFormRules"
+      >
+        <el-form-item label="知识库名称" prop="name">
+          <el-input v-model="repoForm.name" placeholder="请输入知识库名称" />
+        </el-form-item>
+        <el-form-item label="知识库类型" prop="type_id">
+          <el-select v-model="repoForm.type_id" placeholder="请选择知识库类型">
+            <el-option label="产品文档" value="1" />
+            <el-option label="技术文档" value="2" />
+            <el-option label="培训资料" value="3" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="负责人ID" prop="master">
+          <el-input v-model="repoForm.master" placeholder="请输入负责人用户ID" />
+        </el-form-item>
+        <el-form-item label="可见范围" prop="limits">
+          <el-radio-group v-model="repoForm.limits">
+            <el-radio label="0">无限制</el-radio>
+            <el-radio label="1">有限制</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="图标路径" prop="icon_url">
+          <el-input v-model="repoForm.icon_url" placeholder="输入图标路径" />
         </el-form-item>
         <el-form-item label="知识库描述" prop="description">
           <el-input
-            v-model="formData.description"
+            v-model="repoForm.description"
             type="textarea"
-            :rows="3"
-            placeholder="请输入知识库描述"
+            rows="3"
+            placeholder="描述知识库用途"
           />
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit" :loading="submitLoading">确认</el-button>
+        <el-button type="primary" @click="handleFormSubmit">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 归档原因弹窗 -->
+    <el-dialog v-model="archiveDialogVisible" title="归档知识库" width="500px">
+      <el-form :model="archiveForm" label-width="100px">
+        <el-form-item label="归档原因">
+          <el-input
+            v-model="archiveForm.archived_desc"
+            type="textarea"
+            rows="3"
+            placeholder="请输入归档原因"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="archiveDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleArchiveSubmit">确定归档</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
-<script lang="ts" setup name="Knowledge">
-import { ref, onMounted } from 'vue'
-import type { FormInstance, FormRules } from 'element-plus'
-import { Search, Plus, Document } from '@element-plus/icons-vue'
-import { getKnowledgeList, createKnowledge, deleteKnowledge } from './api'
-import { ElMessageBox, ElMessage } from 'element-plus'
-import { successMessage } from '/@/utils/message'
+<script setup lang="ts">
+import { ref, reactive, onMounted, getCurrentInstance } from 'vue';
+import { ElMessage, ElMessageBox, ElLoading } from 'element-plus';
+import { repositoryApi } from './api';
 
-// 权限定义
-const permission = {
-  add: 'knowledge:add',
-  edit: 'knowledge:edit',
-  delete: 'knowledge:delete'
-}
+// 页面状态
+const loading = ref(false); // 列表加载中
+const repoList = ref([]); // 知识库列表数据
+const total = ref(0); // 总条数
+const pageNum = ref(1); // 当前页码
+const pageSize = ref(10); // 每页条数
 
-const searchKeyword = ref('')
-const currentPage = ref(1)
-const pageSize = ref(10)
-const total = ref(0)
-const tableData = ref([])
-const dialogVisible = ref(false)
-const dialogTitle = ref('新建知识库')
-const formRef = ref<FormInstance>()
-const submitLoading = ref(false)
+// 筛选表单
+const filterForm = reactive({
+  status: '', // 状态筛选（normal/archived）
+  type_id: '', // 类型筛选
+  search: '' // 搜索关键词
+});
 
-// 获取列表数据
-const loadData = async () => {
-  const params = {
-    page: currentPage.value,
-    limit: pageSize.value,
-    keyword: searchKeyword.value
-  }
-  const res = await getKnowledgeList(params)
-  tableData.value = res.data.list
-  total.value = res.data.total
-}
-
-// 表单数据
-const formData = ref({
-  title: '',
-  category: '',
-  visibility: 'public',
+// 新增/编辑弹窗
+const dialogVisible = ref(false);
+const dialogType = ref('add'); // add/edit
+const repoFormRef = ref(null);
+const repoForm = reactive({
+  id: '',
+  name: '',
+  type_id: '',
+  master: '',
+  limits: 0, // 默认无限制
+  icon_url: '',
   description: ''
-})
-
+});
 // 表单校验规则
-const formRules: FormRules = {
-  title: [
-    { required: true, message: '请输入知识库名称', trigger: 'blur' },
-    { min: 2, max: 50, message: '长度在 2 到 50 个字符', trigger: 'blur' }
-  ],
-  category: [
-    { required: true, message: '请选择知识库分类', trigger: 'change' }
-  ],
-  visibility: [
-    { required: true, message: '请选择可见范围', trigger: 'change' }
-  ],
-  description: [
-    { required: true, message: '请输入知识库描述', trigger: 'blur' }
-  ]
-}
+const repoFormRules = reactive({
+  name: [{ required: true, message: '请输入知识库名称', trigger: 'blur' }],
+  type_id: [{ required: true, message: '请选择知识库类型', trigger: 'change' }],
+  master: [{ required: true, message: '请输入负责人ID', trigger: 'blur' }],
+  limits: [{ required: true, message: '请选择可见范围', trigger: 'change' }]
+});
 
-// 搜索
-const handleSearch = () => {
-  currentPage.value = 1
-  loadData()
-}
+// 归档弹窗
+const archiveDialogVisible = ref(false);
+const archiveForm = reactive({
+  repo_id: '', // 待归档的知识库ID
+  archived_desc: '' // 归档原因
+});
 
-// 新增
-const handleAdd = () => {
-  dialogVisible.value = true
-  dialogTitle.value = '新建知识库'
-  formData.value = {
-    title: '',
-    category: '',
-    visibility: 'public',
-    description: ''
-  }
-}
-
-// 表单提交
-const handleSubmit = async () => {
-  if (!formRef.value) return
-
-  await formRef.value.validate(async (valid) => {
-    if (valid) {
-      submitLoading.value = true
-      try {
-        await createKnowledge(formData.value)
-        successMessage('创建成功')
-        dialogVisible.value = false
-        loadData()
-      } catch (error) {
-        console.error(error)
-      } finally {
-        submitLoading.value = false
-      }
-    }
-  })
-}
-
-// 编辑
-const handleEdit = (row) => {
-  // 这里需要实现编辑功能
-  console.log('编辑', row)
-}
-
-// 查看
-const handleView = (row) => {
-  // 这里需要实现查看功能
-  console.log('查看', row)
-}
-
-// 删除
-const handleDelete = async (row) => {
-  await ElMessageBox.confirm('确认删除该知识库?', '提示', {
-    type: 'warning'
-  })
-  await deleteKnowledge(row.id)
-  successMessage('删除成功')
-  loadData()
-}
-
-// 分页
-const handleSizeChange = (val: number) => {
-  pageSize.value = val
-  loadData()
-}
-
-const handleCurrentChange = (val: number) => {
-  currentPage.value = val
-  loadData()
-}
-
+// 页面加载时获取列表
 onMounted(() => {
-  loadData()
-})
+  fetchRepoList();
+});
+
+/**
+ * 获取知识库列表（支持筛选、分页）
+ */
+const fetchRepoList = async () => {
+  loading.value = true;
+  try {
+    const params = {
+      page: pageNum.value,
+      limit: pageSize.value,
+      ...(filterForm.status && { status: filterForm.status }),
+      ...(filterForm.type_id && { type_id: filterForm.type_id }),
+      ...(filterForm.search && { search: filterForm.search }),
+    };
+
+    const res = await repositoryApi.getRepoList(params);
+
+    // 适配后端响应格式：code=2000为成功，数据在data数组中
+    if (res.code === 2000) {
+      repoList.value = res.data;
+      total.value = res.total;
+    } else {
+      ElMessage.error(res.msg || '获取知识库列表失败');
+    }
+  } catch (err) {
+    console.error('获取知识库列表错误:', err);
+    ElMessage.error('获取知识库列表失败：网络异常');
+  } finally {
+    loading.value = false;
+  }
+};
+
+/**
+ * 分页相关操作
+ */
+// 每页条数改变
+const handlePageSizeChange = (val) => {
+  pageSize.value = val;
+  pageNum.value = 1; // 重置为第一页
+  fetchRepoList();
+};
+// 当前页码改变
+const handlePageNumChange = (val) => {
+  pageNum.value = val;
+  fetchRepoList();
+};
+
+/**
+ * 新增/编辑操作
+ */
+// 打开新增弹窗
+const handleAdd = () => {
+  dialogType.value = 'add';
+  // 重置表单
+  repoForm.id = '';
+  repoForm.name = '';
+  repoForm.type_id = '';
+  repoForm.master = '';
+  repoForm.limits = 0;
+  repoForm.icon_url = '';
+  repoForm.description = '';
+  dialogVisible.value = true;
+};
+
+// 打开编辑弹窗
+const handleEdit = (row) => {
+  dialogType.value = 'edit';
+  // 回显数据
+  repoForm.id = row.id;
+  repoForm.name = row.name;
+  repoForm.type_id = row.type_id;
+  repoForm.master = row.master;
+  repoForm.limits = row.limits;
+  repoForm.icon_url = row.icon_url || '';
+  repoForm.description = row.description || '';
+  dialogVisible.value = true;
+};
+
+// 表单提交（新增/编辑）
+const handleFormSubmit = async () => {
+  // 表单校验
+  const valid = await repoFormRef.value.validate();
+  if (!valid) return;
+
+  try {
+    let res;
+    if (dialogType.value === 'add') {
+      // 新增知识库
+      res = await repositoryApi.createRepo(repoForm);
+    } else {
+      // 编辑知识库（全量更新）
+      res = await repositoryApi.updateRepo(repoForm.id, repoForm);
+    }
+
+    // 处理响应
+    if (res.code === 2000) {
+      ElMessage.success(`${dialogType.value === 'add' ? '新增' : '编辑'}知识库成功！`);
+      dialogVisible.value = false;
+      fetchRepoList();
+    } else {
+      ElMessage.error(res.msg || `${dialogType.value === 'add' ? '新增' : '编辑'}失败`);
+    }
+  } catch (err) {
+    console.error(`${dialogType.value === 'add' ? '新增' : '编辑'}错误:`, err);
+    ElMessage.error(`${dialogType.value === 'add' ? '新增' : '编辑'}知识库失败：网络异常`);
+  }
+};
+
+/**
+ * 归档/恢复操作
+ */
+// 打开归档弹窗或直接恢复
+const handleArchiveOrRestore = (repoId, status) => {
+  if (status === 'normal') {
+    // 正常状态 → 归档：需输入归档原因
+    archiveForm.repo_id = repoId;
+    archiveForm.archived_desc = '';
+    archiveDialogVisible.value = true;
+  } else {
+    // 归档状态 → 恢复：直接调用接口
+    handleRestore(repoId);
+  }
+};
+
+// 提交归档
+const handleArchiveSubmit = async () => {
+  if (!archiveForm.archived_desc.trim()) {
+    ElMessage.warning('请输入归档原因！');
+    return;
+  }
+
+  try {
+    const res = await repositoryApi.archiveRepo({
+      repo_id: archiveForm.repo_id,
+      archived_desc: archiveForm.archived_desc
+    });
+
+    if (res.code === 2000) {
+      ElMessage.success('知识库归档成功！');
+      archiveDialogVisible.value = false;
+      fetchRepoList();
+    } else {
+      ElMessage.error(res.msg || '归档失败');
+    }
+  } catch (err) {
+    console.error('归档错误:', err);
+    ElMessage.error('归档失败：网络异常');
+  }
+};
+
+// 恢复知识库（从归档/回收站）
+const handleRestore = async (repoId) => {
+  try {
+    const res = await repositoryApi.restoreRepo({ repo_id: repoId });
+
+    if (res.code === 2000) {
+      ElMessage.success('知识库恢复成功！');
+      fetchRepoList();
+    } else {
+      ElMessage.error(res.msg || '恢复失败');
+    }
+  } catch (err) {
+    console.error('恢复错误:', err);
+    ElMessage.error('恢复失败：网络异常');
+  }
+};
+
+/**
+ * 排序操作（上移/下移）
+ */
+const handleSort = async (repoId, direction) => {
+  try {
+    const res = await repositoryApi.sortRepo({ repo_id: repoId, direction });
+
+    if (res.code === 2000) {
+      ElMessage.success(`知识库${direction === 'up' ? '上移' : '下移'}成功！`);
+      fetchRepoList(); // 刷新列表显示最新排序
+    } else {
+      ElMessage.error(res.msg || `排序失败：已到达${direction}移边界`);
+    }
+  } catch (err) {
+    console.error('排序错误:', err);
+    ElMessage.error('排序失败：网络异常');
+  }
+};
+
+/**
+ * 删除操作
+ */
+const handleDelete = async (repoId) => {
+  // 确认弹窗
+  const confirmResult = await ElMessageBox.confirm(
+    '确定要执行此操作吗？删除后可能无法恢复！',
+    '警告',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }
+  ).catch(() => false);
+
+  if (!confirmResult) return;
+
+  try {
+    const res = await repositoryApi.deleteRepo(repoId);
+
+    if (res.code === 2000) {
+      ElMessage.success('操作成功！');
+      fetchRepoList();
+    } else {
+      ElMessage.error(res.msg || '操作失败');
+    }
+  } catch (err) {
+    console.error('删除错误:', err);
+    ElMessage.error('操作失败：网络异常');
+  }
+};
+
+/**
+ * 辅助函数（类型名称/标签样式映射）
+ */
+// 根据type_id获取类型名称
+const getTypeName = (typeId) => {
+  const typeMap = {
+    '1': '产品文档',
+    '2': '技术文档',
+    '3': '培训资料'
+  };
+  return typeMap[typeId] || '未知类型';
+};
+
+// 根据type_id获取标签样式
+const getTypeTagType = (typeId) => {
+  const typeTagMap = {
+    '1': 'primary',
+    '2': 'success',
+    '3': 'info'
+  };
+  return typeTagMap[typeId] || 'default';
+};
+
+/**
+ * 跳转详情页
+ */
+const handleViewDetail = (repoId) => {
+  // 路由跳转：携带知识库ID
+  const { proxy } = getCurrentInstance();
+  proxy.$router.push({ path: `/system/knowledge_detail/${repoId}` });
+};
 </script>
 
-<style lang="scss" scoped>
-.knowledge-container {
+<style scoped>
+.repository-list-container {
   padding: 20px;
-  background: #f5f7fa;
-  min-height: calc(100vh - 84px);
-
-  .header-actions {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
-
-    .left {
-      .search-input {
-        width: 300px;
-      }
-    }
-  }
-
-  .knowledge-list {
-    background: #fff;
-    padding: 20px;
-    border-radius: 4px;
-  }
-
-  .pagination {
-    margin-top: 16px;
-    display: flex;
-    justify-content: flex-end;
-  }
 }
-
-.visibility-container {
+.page-header {
   display: flex;
-  gap: 16px;
-
-  .visibility-option {
-    flex: 1;
-    border: 1px solid #dcdfe6;
-    border-radius: 4px;
-    padding: 16px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-
-    &:hover {
-      border-color: #409EFF;
-    }
-
-    &.selected {
-      border-color: #409EFF;
-      background-color: #f0f7ff;
-    }
-
-    .option-header {
-      display: flex;
-      align-items: center;
-      margin-bottom: 8px;
-
-      .radio-circle {
-        width: 16px;
-        height: 16px;
-        border: 1px solid #dcdfe6;
-        border-radius: 50%;
-        margin-right: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-
-        .inner-circle {
-          width: 8px;
-          height: 8px;
-          background-color: #409EFF;
-          border-radius: 50%;
-        }
-      }
-
-      .option-title {
-        font-weight: 500;
-      }
-    }
-
-    .option-description {
-      font-size: 13px;
-      color: #606266;
-      line-height: 1.5;
-    }
-  }
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.filter-card {
+  margin-bottom: 16px;
 }
 </style>
-
-
-
-
-
-
-
-
-
-
-
-
-
