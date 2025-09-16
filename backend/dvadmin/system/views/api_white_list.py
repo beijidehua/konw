@@ -17,6 +17,7 @@ class ApiWhiteListSerializer(CustomModelSerializer):
     """
 
     class Meta:
+        ref_name = 'SystemApiWhiteListSerializer'  # 唯一的名称
         model = ApiWhiteList
         fields = "__all__"
         read_only_fields = ["id"]

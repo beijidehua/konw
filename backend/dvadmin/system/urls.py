@@ -1,5 +1,7 @@
 from django.urls import path
 from rest_framework import routers
+from django.urls import path, include  # 添加 include 导入
+
 
 from dvadmin.system.views.api_white_list import ApiWhiteListViewSet
 from dvadmin.system.views.area import AreaViewSet
@@ -19,6 +21,9 @@ from dvadmin.system.views.system_config import SystemConfigViewSet
 from dvadmin.system.views.user import UserViewSet
 from dvadmin.system.views.menu_field import MenuFieldViewSet
 from dvadmin.system.views.download_center import DownloadCenterViewSet
+# from dvadmin.system.views.knowledge_edit import KnowledgeBaseViewSet
+from dvadmin.system.views.knowledge_edit import KnowledgeBaseViewSet,DictRepoTypeViewSet
+
 
 system_url = routers.SimpleRouter()
 system_url.register(r'menu', MenuViewSet)
@@ -38,6 +43,11 @@ system_url.register(r'role_menu_permission', RoleMenuPermissionViewSet)
 system_url.register(r'column', MenuFieldViewSet)
 system_url.register(r'login_log', LoginLogViewSet)
 system_url.register(r'download_center', DownloadCenterViewSet)
+system_url.register(r'knowledge_edit', KnowledgeBaseViewSet)
+# 知识库类型下拉选项接口：/api/system/dict/repo-types/
+# system_url.register(r"dictionary", DictRepoTypeViewSet)
+# # 知识库CRUD接口：/api/system/knowledge/
+# system_url.register(r'knowledge_edit', KnowledgeBaseViewSet)
 
 
 urlpatterns = [
@@ -52,5 +62,6 @@ urlpatterns = [
     # path('dept_lazy_tree/', DeptViewSet.as_view({'get': 'dept_lazy_tree'})),
     path('clause/privacy.html', PrivacyView.as_view()),
     path('clause/terms_service.html', TermsServiceView.as_view()),
+    path('mmrepo/',include('mmrepo.urls')),
 ]
 urlpatterns += system_url.urls

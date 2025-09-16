@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     "captcha",
     "channels",
     "dvadmin.system",
+    "mmrepo"
 ]
 
 MIDDLEWARE = [
@@ -119,13 +120,13 @@ WSGI_APPLICATION = "application.wsgi.application"
 #     }
 # }
 
-# 1. 暂时不用mysql
-# 数据库引擎：SQLite 固定值
-DATABASE_ENGINE = 'django.db.backends.sqlite3'
-# 数据库文件路径：建议放在 backend 目录下的 db 文件夹（需手动创建 db 文件夹）
-# 路径说明：./ 表示 backend 目录，db.sqlite3 是数据库文件名（自动生成）
-DATABASE_NAME = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'db', 'db.sqlite3')
-# 数据库文件路径（backend/db/db.sqlite3）
+# # 1. 暂时不用mysql
+# # 数据库引擎：SQLite 固定值
+# DATABASE_ENGINE = 'django.db.backends.sqlite3'
+# # 数据库文件路径：建议放在 backend 目录下的 db 文件夹（需手动创建 db 文件夹）
+# # 路径说明：./ 表示 backend 目录，db.sqlite3 是数据库文件名（自动生成）
+# DATABASE_NAME = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'db', 'db.sqlite3')
+# # 数据库文件路径（backend/db/db.sqlite3）
 
 
 DATABASES = {

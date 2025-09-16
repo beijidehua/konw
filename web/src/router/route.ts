@@ -95,5 +95,19 @@ export const staticRoutes: Array<RouteRecordRaw> = [
 		meta: {
 			title: 'message.router.personal'
 		},
+	},
+	{
+		path: '/knowledge_edit',   //定义访问该页面的 URL 路径, 访问地址：http://你的域名/knowledge/edit
+		name: 'knowledge_edit',  //给路由起一个唯一的名字，用于在代码中标识和跳转路由
+		component: () => import('/@/views/system/knowledge_edit/index.vue'),
+		meta: {
+			title: 'message.router.knowledgeEdit',
+			isLink: '',
+			isHide: false,
+			isKeepAlive: false,
+			isAffix: false,
+			isIframe: false,
+			icon: 'iconfont icon-edit',
+		},
 	}
 ];

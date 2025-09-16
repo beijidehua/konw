@@ -32,6 +32,7 @@ class AreaSerializer(CustomModelSerializer):
         return False
 
     class Meta:
+        ref_name = 'SystemAreaSerializer'  # 唯一标识，包含模块信息
         model = Area
         fields = "__all__"
         read_only_fields = ["id"]
@@ -55,6 +56,7 @@ class AreaCreateUpdateSerializer(CustomModelSerializer):
         return super().to_internal_value(data)
 
     class Meta:
+        ref_name = 'SystemAreaCreateUpdateSerializer'  # 唯一标识，包含系统模块信息
         model = Area
         fields = '__all__'
 

@@ -69,7 +69,8 @@
 		"vue-qr": "^4.0.9",
 		"vue-router": "^4.4.3",
 		"vxe-table": "^4.6.18",
-		"xe-utils": "^3.5.30"
+		"xe-utils": "^3.5.30",
+		"yarn": "^1.22.22"
 	},
 	"devDependencies": {
 		"@types/node": "^18.19.42",
@@ -79,7 +80,7 @@
 		"@typescript-eslint/parser": "^5.46.0",
 		"@vitejs/plugin-vue": "^5.1.2",
 		"@vue/compiler-sfc": "^3.4.38",
-		"eslint": "^9.9.0",
+		"eslint": "^8.57.1",
 		"eslint-plugin-vue": "^9.27.0",
 		"prettier": "^2.8.1",
 		"sass": "^1.56.2",

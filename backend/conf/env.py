@@ -30,6 +30,8 @@ DATABASE_ENGINE = 'django.db.backends.sqlite3'
 # 路径说明：./ 表示 backend 目录，db.sqlite3 是数据库文件名（自动生成）
 DATABASE_NAME = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'db', 'db.sqlite3')
 
+# 新增：打印最终的数据库文件路径，验证是否正确
+print("SQLite数据库路径：", DATABASE_NAME)  # 关键：查看路径是否符合预期
 DATABASE_USER = ''  # 空字符串，SQLite 无需用户名
 DATABASE_PASSWORD = ''  # 空字符串，SQLite 无需密码
 DATABASE_HOST = ''  # 空字符串，SQLite 无需主机地址
