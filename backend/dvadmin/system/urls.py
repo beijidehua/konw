@@ -22,7 +22,7 @@ from dvadmin.system.views.user import UserViewSet
 from dvadmin.system.views.menu_field import MenuFieldViewSet
 from dvadmin.system.views.download_center import DownloadCenterViewSet
 # from dvadmin.system.views.knowledge_edit import KnowledgeBaseViewSet
-from dvadmin.system.views.knowledge_edit import KnowledgeBaseViewSet,DictRepoTypeViewSet
+from dvadmin.system.views.knowledge_edit import MmRepositoryViewSet
 
 
 system_url = routers.SimpleRouter()
@@ -43,7 +43,7 @@ system_url.register(r'role_menu_permission', RoleMenuPermissionViewSet)
 system_url.register(r'column', MenuFieldViewSet)
 system_url.register(r'login_log', LoginLogViewSet)
 system_url.register(r'download_center', DownloadCenterViewSet)
-system_url.register(r'knowledge_edit', KnowledgeBaseViewSet)
+system_url.register(r'knowledge_edit', MmRepositoryViewSet)
 # 知识库类型下拉选项接口：/api/system/dict/repo-types/
 # system_url.register(r"dictionary", DictRepoTypeViewSet)
 # # 知识库CRUD接口：/api/system/knowledge/

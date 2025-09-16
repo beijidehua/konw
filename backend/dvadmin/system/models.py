@@ -722,44 +722,44 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 
-class DvadminSystemDictionary(models.Model):
-    TYPE_CHOICES = (
-        (0, 'text'),
-        (1, 'number'),
-        (2, 'date'),
-        (3, 'datetime'),
-        (4, 'time'),
-        (5, 'files'),
-        (6, 'boolean'),
-        (7, 'images'),
-    )
-
-    description = models.CharField(max_length=255, blank=True, null=True, verbose_name="描述信息")
-    modifier = models.CharField(max_length=255, blank=True, null=True, verbose_name="修改人")
-    dept_belong_id = models.CharField(max_length=255, blank=True, null=True, verbose_name="所属部门ID")
-    update_datetime = models.DateTimeField(blank=True, null=True, verbose_name="更新时间")
-    create_datetime = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
-    label = models.CharField(max_length=100, blank=True, null=True, verbose_name="字典名称")
-    value = models.CharField(max_length=200, blank=True, null=True, verbose_name="字典编号/实际值")
-    type = models.IntegerField(choices=TYPE_CHOICES, default=0, verbose_name="数据值类型")
-    color = models.CharField(max_length=20, blank=True, null=True, verbose_name="颜色")
-    is_value = models.BooleanField(default=False, verbose_name="是否为value值")
-    status = models.BooleanField(default=True, verbose_name="状态")
-    sort = models.IntegerField(default=1, verbose_name="显示排序")
-    remark = models.TextField(blank=True, null=True, verbose_name="备注")
-    creator = models.ForeignKey(User, on_delete=models.SET_NULL, blank=True, null=True,
-                                related_name='created_dictionaries', verbose_name="创建人")
-    parent = models.ForeignKey('self', on_delete=models.SET_NULL, blank=True, null=True,
-                               related_name='children', verbose_name="父级")
-
-    class Meta:
-        db_table = 'dvadmin_system_dictionary'
-        verbose_name = "系统字典"
-        verbose_name_plural = verbose_name
-        ordering = ['sort', 'create_datetime']
-
-    def __str__(self):
-        return f"{self.label} ({self.value})" if self.label else str(self.id)
+# class DvadminSystemDictionary(models.Model):
+#     TYPE_CHOICES = (
+#         (0, 'text'),
+#         (1, 'number'),
+#         (2, 'date'),
+#         (3, 'datetime'),
+#         (4, 'time'),
+#         (5, 'files'),
+#         (6, 'boolean'),
+#         (7, 'images'),
+#     )
+#
+#     description = models.CharField(max_length=255, blank=True, null=True, verbose_name="描述信息")
+#     modifier = models.CharField(max_length=255, blank=True, null=True, verbose_name="修改人")
+#     dept_belong_id = models.CharField(max_length=255, blank=True, null=True, verbose_name="所属部门ID")
+#     update_datetime = models.DateTimeField(blank=True, null=True, verbose_name="更新时间")
+#     create_datetime = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+#     label = models.CharField(max_length=100, blank=True, null=True, verbose_name="字典名称")
+#     value = models.CharField(max_length=200, blank=True, null=True, verbose_name="字典编号/实际值")
+#     type = models.IntegerField(choices=TYPE_CHOICES, default=0, verbose_name="数据值类型")
+#     color = models.CharField(max_length=20, blank=True, null=True, verbose_name="颜色")
+#     is_value = models.BooleanField(default=False, verbose_name="是否为value值")
+#     status = models.BooleanField(default=True, verbose_name="状态")
+#     sort = models.IntegerField(default=1, verbose_name="显示排序")
+#     remark = models.TextField(blank=True, null=True, verbose_name="备注")
+#     creator = models.ForeignKey(User, on_delete=models.SET_NULL, blank=True, null=True,
+#                                 related_name='created_dictionaries', verbose_name="创建人")
+#     parent = models.ForeignKey('self', on_delete=models.SET_NULL, blank=True, null=True,
+#                                related_name='children', verbose_name="父级")
+#
+#     class Meta:
+#         db_table = 'dvadmin_system_dictionary'
+#         verbose_name = "系统字典"
+#         verbose_name_plural = verbose_name
+#         ordering = ['sort', 'create_datetime']
+#
+#     def __str__(self):
+#         return f"{self.label} ({self.value})" if self.label else str(self.id)
 
 
 from django.db import models
@@ -820,82 +820,45 @@ User = get_user_model()
 #         """获取负责人名称"""
 #         return self.master.username if self.master else ''
 
-
 from django.db import models
 from django.utils import timezone
 
 
-class KnowledgeBase(models.Model):
-    # 知识库唯一ID，自增主键
-    id = models.AutoField(primary_key=True)
-
-    # 知识库名称
-    name = models.CharField(max_length=255, verbose_name="知识库名称")
-
-    # 知识库类型ID（关联字典表，逻辑关联）
-    type_id = models.IntegerField(verbose_name="知识库类型ID")
-
-    # 负责人ID（关联用户表，逻辑关联）
-    master = models.IntegerField(verbose_name="负责人ID")
-
-    # 可见范围：0=所有人可编辑，1=仅成员可编辑
-    LIMITS_CHOICES = [
-        (0, "所有人可编辑（公开）"),
-        (1, "仅知识库成员可编辑（私有）"),
-    ]
-    limits = models.IntegerField(choices=LIMITS_CHOICES, verbose_name="可见范围")
-
-    # 创建时间（自动记录）
-    create_time = models.DateTimeField(default=timezone.now, verbose_name="创建时间")
-
-    # 图标访问路径
-    icon_url = models.CharField(max_length=255, null=True, blank=True, verbose_name="图标访问路径")
-
-    # 知识库状态：normal=正常，archived=归档
-    STATUS_CHOICES = [
-        ("normal", "正常（可访问）"),
-        ("archived", "归档（只读）"),
-    ]
-    status = models.CharField(
-        max_length=20,
-        choices=STATUS_CHOICES,
-        default="normal",
-        verbose_name="知识库状态"
+class MmRepository(models.Model):
+    STATUS_CHOICES = (
+        ('normal', '正常'),
+        ('archived', '归档'),
     )
 
-    # 归档时间
-    archived_time = models.DateTimeField(null=True, blank=True, verbose_name="归档时间")
-
-    # 归档人ID（关联用户表，逻辑关联）
-    archived_user_id = models.IntegerField(null=True, blank=True, verbose_name="归档人ID")
-
-    # 归档原因
-    archived_desc = models.TextField(null=True, blank=True, verbose_name="归档原因")
-
-    # 是否回收：0=未回收，1=已回收
-    RECYCLE_CHOICES = [
-        (0, "未放入回收站"),
-        (1, "已放入回收站"),
-    ]
-    recycle = models.IntegerField(
-        choices=RECYCLE_CHOICES,
-        default=0,
-        verbose_name="是否回收"
+    LIMITS_CHOICES = (
+        (0, '无限制'),
+        (1, '有限制'),
     )
 
-    # 回收时间
-    recycle_time = models.DateTimeField(null=True, blank=True, verbose_name="回收时间")
+    RECYCLE_CHOICES = (
+        (0, '未回收'),
+        (1, '已回收'),
+    )
 
-    # 回收人ID（关联用户表，逻辑关联）
-    recycle_user_id = models.IntegerField(null=True, blank=True, verbose_name="回收人ID")
-
-    # 知识库描述
-    description = models.TextField(null=True, blank=True, verbose_name="知识库描述")
+    name = models.TextField(verbose_name='仓库名称')
+    type_id = models.IntegerField(verbose_name='类型ID')
+    master = models.IntegerField(verbose_name='负责人')
+    limits = models.IntegerField(choices=LIMITS_CHOICES, verbose_name='限制')
+    create_time = models.DateTimeField(default=timezone.now, verbose_name='创建时间')
+    icon_url = models.TextField(blank=True, null=True, verbose_name='图标URL')
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='normal', verbose_name='状态')
+    archived_time = models.DateTimeField(blank=True, null=True, verbose_name='归档时间')
+    archived_user_id = models.IntegerField(blank=True, null=True, verbose_name='归档用户ID')
+    archived_desc = models.TextField(blank=True, null=True, verbose_name='归档描述')
+    recycle = models.IntegerField(choices=RECYCLE_CHOICES, default=0, verbose_name='回收状态')
+    recycle_time = models.DateTimeField(blank=True, null=True, verbose_name='回收时间')
+    recycle_user_id = models.IntegerField(blank=True, null=True, verbose_name='回收用户ID')
+    description = models.TextField(blank=True, null=True, verbose_name='描述')
 
     class Meta:
-        db_table = "mm_repository"  # 对应数据库表名
-        verbose_name = "知识库"
-        verbose_name_plural = "知识库"
+        db_table = 'mm_repository'
+        verbose_name = '仓库'
+        verbose_name_plural = '仓库'
 
     def __str__(self):
-        return self.name  # 显示知识库名称作为对象标识
+        return self.name
