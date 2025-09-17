@@ -61,7 +61,13 @@ export const repositoryApi = {
       method: 'POST',
       data
     }),
-
+	// 3.1 更新知识库（请求参数类型）
+	updateRepo: (id: number, data: Partial<Omit<Repository, 'id' | 'create_time'>>) =>
+  	request<Repository>({
+			url: `/api/system/knowledge_edit/${id}/`,  // 新增：在 URL 中指定要更新的资源 ID
+			method: 'PUT',
+			data  // data 中无需再包含 id（避免重复或冲突）
+  }),
   // 4. 归档知识库（请求参数类型）
   archiveRepo: (data: { repo_id: number; archived_desc?: string }) =>
     request<{ msg: string }>({ // 响应类型：仅返回提示信息
@@ -77,6 +83,12 @@ export const repositoryApi = {
       method: 'POST',
       data
     }),
+	//6.删除-移至回收站
+	deleteRepo: (id: number) =>
+		 	request<{ msg: string }>({
+			url: `/api/system/knowledge_edit/${id}/`,
+			method: 'DELETE',
+		}),
 
   getRepoInfo: (repoId: number) =>
     request<RepoInfoResponse>({

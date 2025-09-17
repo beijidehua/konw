@@ -352,36 +352,65 @@ const handleEdit = (row) => {
   repoForm.description = row.description || '';
   dialogVisible.value = true;
 };
-
 // 表单提交（新增/编辑）
 const handleFormSubmit = async () => {
-  // 表单校验
   const valid = await repoFormRef.value.validate();
   if (!valid) return;
 
   try {
     let res;
     if (dialogType.value === 'add') {
-      // 新增知识库
       res = await repositoryApi.createRepo(repoForm);
     } else {
-      // 编辑知识库（全量更新）
       res = await repositoryApi.updateRepo(repoForm.id, repoForm);
     }
 
-    // 处理响应
     if (res.code === 2000) {
       ElMessage.success(`${dialogType.value === 'add' ? '新增' : '编辑'}知识库成功！`);
       dialogVisible.value = false;
       fetchRepoList();
     } else {
-      ElMessage.error(res.msg || `${dialogType.value === 'add' ? '新增' : '编辑'}失败`);
+      // 优化：显示后端返回的具体错误（如“负责人ID不存在”）
+      ElMessage.error(`操作失败：${res.msg || '系统异常'}`);
     }
   } catch (err) {
     console.error(`${dialogType.value === 'add' ? '新增' : '编辑'}错误:`, err);
-    ElMessage.error(`${dialogType.value === 'add' ? '新增' : '编辑'}知识库失败：网络异常`);
+    // 优化：区分网络错误和其他错误
+    if (err.message.includes('Network Error')) {
+      ElMessage.error('操作失败：网络连接异常，请检查网络');
+    } else {
+      ElMessage.error('操作失败：系统内部错误，请联系管理员');
+    }
   }
 };
+// const handleFormSubmit = async () => {
+//   // 表单校验
+//   const valid = await repoFormRef.value.validate();
+//   if (!valid) return;
+//
+//   try {
+//     let res;
+//     if (dialogType.value === 'add') {
+//       // 新增知识库
+//       res = await repositoryApi.createRepo(repoForm);
+//     } else {
+//       // 编辑知识库（全量更新）
+//       res = await repositoryApi.updateRepo(repoForm.id, repoForm);
+//     }
+//
+//     // 处理响应
+//     if (res.code === 2000) {
+//       ElMessage.success(`${dialogType.value === 'add' ? '新增' : '编辑'}知识库成功！`);
+//       dialogVisible.value = false;
+//       fetchRepoList();
+//     } else {
+//       ElMessage.error(res.msg || `${dialogType.value === 'add' ? '新增' : '编辑'}失败`);
+//     }
+//   } catch (err) {
+//     console.error(`${dialogType.value === 'add' ? '新增' : '编辑'}错误:`, err);
+//     ElMessage.error(`${dialogType.value === 'add' ? '新增' : '编辑'}知识库失败：网络异常`);
+//   }
+// };
 
 /**
  * 归档/恢复操作
