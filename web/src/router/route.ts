@@ -45,7 +45,61 @@ export const dynamicRoutes: Array<RouteRecordRaw> = [
 			isIframe: false,
 			icon: 'iconfont icon-gerenzhongxin',
 		},
-	}
+	},
+    // 单个知识库系统路由（独立侧边栏）
+	{
+        // 路由路径，`:kbId` 是**动态路由参数**，表示“知识库的唯一标识”, “不同知识库页面” 的 “区分标识”
+		path: '/repository/:kbId',
+		name: 'RepositorySystem',
+		component: () => import('/@/views/system/repository/Layout.vue'), // 复用布局（顶栏一致）
+		// 当访问 /repository/:kbId 时，默认重定向到“概述页”
+        redirect: '/repository/:kbId/overview',
+		meta: {
+            // 是否缓存该路由的组件状态（切换路由后，组件数据不丢失）
+			isKeepAlive: true,
+            // 自定义标识：表示这是“知识库系统”的路由（用于布局中区分侧边栏）
+			systemType: 'repository' // 知识库系统标识
+		},
+		children: [
+			{
+                // （相对父路由，完整路径是 /repository/:kbId/overview）
+				path: '/repository/views/Overview/:id',
+				name: 'mmOverview',
+				component: () => import('/@/views/system/repository/views/Overview.vue'),
+				meta: {
+					title: '概述',
+					systemType: 'repository' // 属于单个知识库系统
+				},
+			},
+			// {
+			// 	path: 'docs',
+			// 	name: 'mmDocs',
+			// 	// component: () => import('/@/views/system/repository/views/Docs.vue'),
+			// 	meta: {
+			// 		title: '文档',
+			// 		systemType: 'repository'
+			// 	},
+			// },
+      //       {
+			// 	path: 'statistics',
+			// 	name: 'mmStatistics',
+			// 	// component: () => import('/@/views/system/repository/views/Statistics.vue'),
+			// 	meta: {
+			// 		title: '统计',
+			// 		systemType: 'repository'
+      //           },
+      //       },
+			// {
+			// 	path: 'settings',
+			// 	name: 'mmSettings',
+			// 	// component: () => import('/@/views/system/repository/views/Settings.vue'),
+			// 	meta: {
+			// 		title: '设置',
+			// 		systemType: 'repository'
+			// 	},
+			// },
+		]
+	},
 ];
 
 /**
@@ -96,18 +150,6 @@ export const staticRoutes: Array<RouteRecordRaw> = [
 			title: 'message.router.personal'
 		},
 	},
-	{
-		path: '/knowledge_edit',   //定义访问该页面的 URL 路径, 访问地址：http://你的域名/knowledge/edit
-		name: 'knowledge_edit',  //给路由起一个唯一的名字，用于在代码中标识和跳转路由
-		component: () => import('/@/views/system/knowledge_edit/index.vue'),
-		meta: {
-			title: 'message.router.knowledgeEdit',
-			isLink: '',
-			isHide: false,
-			isKeepAlive: false,
-			isAffix: false,
-			isIframe: false,
-			icon: 'iconfont icon-edit',
-		},
-	}
+
+
 ];

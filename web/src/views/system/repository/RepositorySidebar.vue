@@ -37,7 +37,7 @@
 
     <!-- 返回原系统按钮 -->
     <div class="back-btn">
-      <router-link to="/knowledge_edit">
+      <router-link to="/knowledgeEdit">
 <!--        返回原系统，路由要更改一下-->
         <i class="iconfont icon-fanhui"></i>
         <span>返回知识库列表</span>

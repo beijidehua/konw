@@ -18,7 +18,7 @@
 <!--        <RepositorySidebar />-->
 <!--      </template>-->
 <!--      &lt;!&ndash; 内容区域（路由出口） &ndash;&gt;-->
-<!--      <router-views class="page-content" />-->
+<!--      <router-view class="page-content" />-->
 <!--    </div>-->
 <!--  </div>-->
 <!--</template>-->

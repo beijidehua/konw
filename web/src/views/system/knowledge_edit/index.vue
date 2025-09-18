@@ -548,11 +548,17 @@ const getTypeTagType = (typeId) => {
 /**
  * 跳转详情页
  */
-const handleViewDetail = (repoId) => {
-  // 路由跳转：携带知识库ID
-  const { proxy } = getCurrentInstance();
-  proxy.$router.push({ path: `/system/knowledge_detail/${repoId}` });
-};
+import { useRouter } from 'vue-router';
+
+// 2. 在 setup 顶层获取路由实例（确保在组件上下文中）
+const router = useRouter();
+// 3. 在函数中直接使用路由实例
+const handleViewDetail = (id) => {
+  router.push({
+    name: 'mmOverview',
+    params: {id}
+  });
+}
 </script>
 
 <style scoped>
