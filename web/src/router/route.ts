@@ -63,7 +63,7 @@ export const dynamicRoutes: Array<RouteRecordRaw> = [
 		children: [
 			{
                 // （相对父路由，完整路径是 /repository/:kbId/overview）
-				path: '/repository/views/Overview/:id',
+				path: 'repository/views/Overview/',
 				name: 'mmOverview',
 				component: () => import('/@/views/system/repository/views/Overview.vue'),
 				meta: {

@@ -63,7 +63,13 @@
       <el-table-column label="知识库名称" prop="name">
         <template #default="scope">
           <el-link @click="handleViewDetail(scope.row.id)">{{ scope.row.name }}</el-link>
-        </template>
+<!--  <el-link-->
+<!--    :href="`${window.location.origin}/src/views/newpage/repository/views/Overview/${scope.row.id}`"-->
+<!--    target="_blank"-->
+<!--  >-->
+<!--    {{ scope.row.name }}-->
+<!--  </el-link>-->
+				</template>
       </el-table-column>
       <el-table-column label="类型" prop="type_id" width="120" align="center">
         <template #default="scope">
@@ -556,9 +562,17 @@ const router = useRouter();
 const handleViewDetail = (id) => {
   router.push({
     name: 'mmOverview',
-    params: {id}
+    // params: {id}
   });
 }
+// 脚本中打开新页面的方式
+// const handleViewDetail = (id) => {
+//   const routeLocation = router.resolve({
+//     name: 'mmOverview',
+//     params: { id }
+//   })
+//   window.open(window.location.origin + routeLocation.href, '_blank')
+// }
 </script>
 
 <style scoped>
