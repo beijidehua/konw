@@ -47,7 +47,7 @@ system_url.register(r'knowledge_edit', MmRepositoryViewSet)
 # 知识库类型下拉选项接口：/api/system/dict/repo-types/
 # system_url.register(r"dictionary", DictRepoTypeViewSet)
 # # 知识库CRUD接口：/api/system/knowledge/
-system_url.register(r'repository', repositoryViewSet)
+
 
 
 urlpatterns = [
