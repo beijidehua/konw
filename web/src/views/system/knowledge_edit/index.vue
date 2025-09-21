@@ -556,7 +556,7 @@ const router = useRouter();
 const handleViewDetail = (id) => {
   // 1. 解析目标路由的完整URL（基于路由配置生成）
   const detailRoute = router.resolve({
-    name: 'mmOverview', // 目标详情页的路由名称（确保与路由配置一致）
+    name: 'knowledge_detail', // 目标详情页的路由名称（确保与路由配置一致）
     params: { id } // 传递知识库ID参数（与现有逻辑一致）
   });
   // 2. 新窗口打开详情页（_blank 表示新窗口）

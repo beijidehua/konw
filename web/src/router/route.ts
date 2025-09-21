@@ -46,11 +46,21 @@ export const dynamicRoutes: Array<RouteRecordRaw> = [
 			icon: 'iconfont icon-gerenzhongxin',
 		},
 		children: [
+			// {
+      //           // （相对父路由，完整路径是 /repository/:kbId/overview）
+			// 	path: '/repository/index/:id',
+			// 	name: 'mmOverview',
+			// 	component: () => import('/@/views/system/repository/index.vue'),
+			// 	meta: {
+			// 		title: '概述',
+			// 		systemType: 'repository' // 属于单个知识库系统
+			// 	},
+			// },
 			{
                 // （相对父路由，完整路径是 /repository/:kbId/overview）
-				path: '/repository/index/:id',
-				name: 'mmOverview',
-				component: () => import('/@/views/system/repository/index.vue'),
+				path: '/knowledge_detail/index',
+				name: 'knowledge_detail',
+				component: () => import('/@/views/system/knowledge_detail/index.vue'),
 				meta: {
 					title: '概述',
 					systemType: 'repository' // 属于单个知识库系统

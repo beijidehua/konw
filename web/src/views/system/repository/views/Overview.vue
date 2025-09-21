@@ -150,6 +150,7 @@ const fetchKbData = async () => {
 
 // 4. 页面挂载时自动加载数据
 onMounted(() => {
+	ElMessage.warning(`ID: ${kbId}`);
   // 验证 kbId 是否存在（防止非法访问）
   if (kbId || kbId === 'undefined' || kbId === 'null') {
     ElMessage.warning('无效的知识库ID');
