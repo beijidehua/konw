@@ -259,44 +259,89 @@ export default {
       });
     };
 
-    // 文档数据
-    const frequentDocs = ref([
-      { id: 1, title: '产品设计规范', date: '2025-09-20' },
-      { id: 2, title: '用户需求文档', date: '2025-09-18' },
-      { id: 3, title: '开发指南', date: '2025-09-15' }
-    ]);
+    // 文档数据 - 初始化为空数组
+    const frequentDocs = ref([]);
+    const recentDocs = ref([]);
+    const allDocs = ref([]);
+    const permissions = ref([]);
 
-    const recentDocs = ref([
-      { id: 1, title: '项目会议记录', date: '2025-09-25' },
-      { id: 2, title: '需求分析报告', date: '2025-09-24' },
-      { id: 3, title: '技术方案设计', date: '2025-09-23' },
-      { id: 4, title: '测试用例文档', date: '2025-09-22' }
-    ]);
+    // 加载状态
+    const loading = ref({
+      frequentDocs: true,
+      recentDocs: true,
+      allDocs: true,
+      permissions: true
+    });
 
-    const allDocs = ref([
-      {
-        id: 1,
-        title: '项目规划文档',
-        content: '本项目旨在开发一个高效的知识库管理系统，方便团队成员共享和查找文档资料。'
-      },
-      {
-        id: 2,
-        title: 'UI设计规范',
-        content: '本文档规定了系统的设计语言和组件使用规范，确保产品体验的一致性。'
-      },
-      {
-        id: 3,
-        title: 'API接口文档',
-        content: '本文档详细描述了系统提供的API接口及其参数、返回格式和调用示例。'
+    // API端点配置
+    const API_BASE = 'https://api.example.com/knowledge-base';
+    const API_ENDPOINTS = {
+      FREQUENT_DOCS: `${API_BASE}/documents/frequent`,
+      RECENT_DOCS: `${API_BASE}/documents/recent`,
+      ALL_DOCS: `${API_BASE}/documents`,
+      PERMISSIONS: `${API_BASE}/permissions`,
+      ADD_DOCUMENT: `${API_BASE}/documents`,
+      ADD_FOLDER: `${API_BASE}/folders`,
+      ADD_MARKDOWN: `${API_BASE}/markdown`,
+      UPLOAD_DOCUMENT: `${API_BASE}/upload`
+    };
+
+    // 获取常用文档
+    const fetchFrequentDocs = async () => {
+      try {
+        loading.value.frequentDocs = true;
+        const response = await fetch(API_ENDPOINTS.FREQUENT_DOCS);
+        if (!response.ok) throw new Error('获取常用文档失败');
+        frequentDocs.value = await response.json();
+      } catch (error) {
+        console.error('获取常用文档出错:', error);
+        // 可以在这里添加备用数据或错误处理
+      } finally {
+        loading.value.frequentDocs = false;
       }
-    ]);
+    };
 
-    // 权限数据
-    const permissions = ref([
-      { id: 1, title: '管理员权限', desc: '完全访问系统所有功能' },
-      { id: 2, title: '编辑权限', desc: '可以创建和编辑文档' },
-      { id: 3, title: '查看权限', desc: '仅查看文档内容' }
-    ]);
+    // 获取最新文档
+    const fetchRecentDocs = async () => {
+      try {
+        loading.value.recentDocs = true;
+        const response = await fetch(API_ENDPOINTS.RECENT_DOCS);
+        if (!response.ok) throw new Error('获取最新文档失败');
+        recentDocs.value = await response.json();
+      } catch (error) {
+        console.error('获取最新文档出错:', error);
+      } finally {
+        loading.value.recentDocs = false;
+      }
+    };
+
+    // 获取所有文档
+    const fetchAllDocs = async () => {
+      try {
+        loading.value.allDocs = true;
+        const response = await fetch(API_ENDPOINTS.ALL_DOCS);
+        if (!response.ok) throw new Error('获取文档列表失败');
+        allDocs.value = await response.json();
+      } catch (error) {
+        console.error('获取文档列表出错:', error);
+      } finally {
+        loading.value.allDocs = false;
+      }
+    };
+
+    // 获取权限列表
+    const fetchPermissions = async () => {
+      try {
+        loading.value.permissions = true;
+        const response = await fetch(API_ENDPOINTS.PERMISSIONS);
+        if (!response.ok) throw new Error('获取权限列表失败');
+        permissions.value = await response.json();
+      } catch (error) {
+        console.error('获取权限列表出错:', error);
+      } finally {
+        loading.value.permissions = false;
+      }
+    };
 
     // 模态框状态
     const showAddModal = ref(false);
@@ -351,56 +396,98 @@ export default {
     };
 
     // 确认添加目录
-    const confirmAddFolder = () => {
+    const confirmAddFolder = async () => {
       if (!newFolder.value.name) {
         alert('请输入目录名称');
         return;
       }
 
-      // 模拟添加到系统
-      alert(`已创建目录: ${newFolder.value.name}`);
-      showFolderModal.value = false;
-      newFolder.value = { name: '', description: '' };
+      try {
+        const response = await fetch(API_ENDPOINTS.ADD_FOLDER, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(newFolder.value)
+        });
+        
+        if (!response.ok) throw new Error('创建目录失败');
+        
+        const result = await response.json();
+        alert(`已创建目录: ${result.name}`);
+        showFolderModal.value = false;
+        newFolder.value = { name: '', description: '' };
+        
+        // 刷新文档列表
+        fetchAllDocs();
+      } catch (error) {
+        console.error('创建目录出错:', error);
+        alert('创建目录失败，请重试');
+      }
     };
 
     // 确认添加文档
-    const confirmAddDocument = () => {
+    const confirmAddDocument = async () => {
       if (!newDoc.value.title || !newDoc.value.content) {
         alert('请填写文档标题和内容');
         return;
       }
 
-      // 添加到文档列表
-      allDocs.value.unshift({
-        id: allDocs.value.length + 1,
-        title: newDoc.value.title,
-        content: newDoc.value.content
-      });
-
-      // 清空表单并关闭模态框
-      newDoc.value = { title: '', content: '' };
-      showAddModal.value = false;
-      alert('文档添加成功!');
+      try {
+        const response = await fetch(API_ENDPOINTS.ADD_DOCUMENT, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(newDoc.value)
+        });
+        
+        if (!response.ok) throw new Error('添加文档失败');
+        
+        const result = await response.json();
+        alert(`文档添加成功: ${result.title}`);
+        newDoc.value = { title: '', content: '' };
+        showAddModal.value = false;
+        
+        // 刷新文档列表
+        fetchRecentDocs();
+        fetchAllDocs();
+      } catch (error) {
+        console.error('添加文档出错:', error);
+        alert('添加文档失败，请重试');
+      }
     };
 
     // 确认添加Markdown
-    const confirmAddMarkdown = () => {
+    const confirmAddMarkdown = async () => {
       if (!newMarkdown.value.title || !newMarkdown.value.content) {
         alert('请填写文档标题和内容');
         return;
       }
 
-      // 添加到文档列表
-      allDocs.value.unshift({
-        id: allDocs.value.length + 1,
-        title: newMarkdown.value.title,
-        content: newMarkdown.value.content
-      });
-
-      // 清空表单并关闭模态框
-      newMarkdown.value = { title: '', content: '' };
-      showMarkdownModal.value = false;
-      alert('Markdown文档添加成功!');
+      try {
+        const response = await fetch(API_ENDPOINTS.ADD_MARKDOWN, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(newMarkdown.value)
+        });
+        
+        if (!response.ok) throw new Error('添加Markdown文档失败');
+        
+        const result = await response.json();
+        alert(`Markdown文档添加成功: ${result.title}`);
+        newMarkdown.value = { title: '', content: '' };
+        showMarkdownModal.value = false;
+        
+        // 刷新文档列表
+        fetchRecentDocs();
+        fetchAllDocs();
+      } catch (error) {
+        console.error('添加Markdown文档出错:', error);
+        alert('添加Markdown文档失败，请重试');
+      }
     };
 
     // 触发文件选择
@@ -417,32 +504,57 @@ export default {
     };
 
     // 上传文档
-    const uploadDocument = () => {
+    const uploadDocument = async () => {
       if (!selectedFile.value) {
         alert('请先选择要上传的文件');
         return;
       }
 
-      // 模拟上传操作
-      console.log('上传文档:', selectedFile.value.name);
-
-      // 添加到文档列表
-      allDocs.value.unshift({
-        id: allDocs.value.length + 1,
-        title: selectedFile.value.name,
-        content: `已上传文件: ${selectedFile.value.name}`
-      });
-
-      showUploadModal.value = false;
-      selectedFile.value = null;
-      alert('文档上传成功!');
+      try {
+        const formData = new FormData();
+        formData.append('file', selectedFile.value);
+        
+        const response = await fetch(API_ENDPOINTS.UPLOAD_DOCUMENT, {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (!response.ok) throw new Error('上传文档失败');
+        
+        const result = await response.json();
+        alert(`文档上传成功: ${result.filename}`);
+        showUploadModal.value = false;
+        selectedFile.value = null;
+        
+        // 刷新文档列表
+        fetchRecentDocs();
+        fetchAllDocs();
+      } catch (error) {
+        console.error('上传文档出错:', error);
+        alert('上传文档失败，请重试');
+      }
     };
 
     // 申请权限
-    const requestPermission = (permissionId) => {
-      const permission = permissions.value.find(p => p.id === permissionId);
-      if (permission) {
+    const requestPermission = async (permissionId) => {
+      try {
+        const permission = permissions.value.find(p => p.id === permissionId);
+        if (!permission) return;
+        
+        const response = await fetch(`${API_BASE}/permissions/request`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ permissionId })
+        });
+        
+        if (!response.ok) throw new Error('申请权限失败');
+        
         alert(`已申请权限: ${permission.title}`);
+      } catch (error) {
+        console.error('申请权限出错:', error);
+        alert('申请权限失败，请重试');
       }
     };
 
@@ -453,11 +565,17 @@ export default {
       }
     };
 
-    // 组件挂载时启动时钟
+    // 组件挂载时启动时钟并获取数据
     onMounted(() => {
       updateDateTime();
       timeInterval = setInterval(updateDateTime, 60000);
       document.addEventListener('click', closeDropdownOnClickOutside);
+      
+      // 获取初始数据
+      fetchFrequentDocs();
+      fetchRecentDocs();
+      fetchAllDocs();
+      fetchPermissions();
     });
 
     // 组件卸载时清除时钟
@@ -484,6 +602,7 @@ export default {
       newFolder,
       newMarkdown,
       fileInput,
+      loading,
       toggleAddDropdown,
       addFolder,
       addDocument,
@@ -498,8 +617,8 @@ export default {
     };
   }
 }
-
 </script>
+
 
 <style scoped>
 .knowledge-base-system {
