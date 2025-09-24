@@ -30,16 +30,7 @@
           <div class="date">{{ currentDate }} {{ currentTime }}</div>
         </div>
         <div class="action-buttons">
-          <!-- 用户信息显示 -->
-          <div class="user-greeting">
-            <div class="greeting-text">{{ getGreeting() }}，{{ state.personalForm.name || '用户' }}！欢迎使用知识库系统</div>
-            <div class="user-info-top">
-              <div class="user-avatar">
-                <el-avatar :size="32" :src="state.personalForm.avatar ? getBaseURL(state.personalForm.avatar) : ''">{{ state.personalForm.name ? state.personalForm.name.substring(0, 1) : 'U' }}</el-avatar>
-              </div>
-              <div class="user-name">{{ state.personalForm.name || '用户' }}</div>
-            </div>
-          </div>
+          
 
           <!-- 添加下拉菜单 -->
           <div class="dropdown">
@@ -66,12 +57,18 @@
           <button class="btn btn-primary" @click="showUploadModal = true">
             <i class="fas fa-upload"></i> 上传
           </button>
-          <button class="btn-icon">
-            <i class="fas fa-star"></i>
-          </button>
-          <button class="btn-icon">
-            <i class="fas fa-share-alt"></i>
-          </button>
+
+          <!-- 用户信息显示 -->
+          <div class="user-greeting">
+            <div class="greeting-text">{{ getGreeting() }}，{{ state.personalForm.name || '用户' }}！欢迎使用知识库系统</div>
+            <div class="user-info-top">
+              <div class="user-avatar">
+                <el-avatar :size="32" :src="state.personalForm.avatar ? getBaseURL(state.personalForm.avatar) : ''">{{ state.personalForm.name ? state.personalForm.name.substring(0, 1) : 'U' }}</el-avatar>
+              </div>
+              <div class="user-name">{{ state.personalForm.name || '用户' }}</div>
+            </div>
+          </div>
+
         </div>
       </div>
 
