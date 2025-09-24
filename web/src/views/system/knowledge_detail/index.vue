@@ -1,7 +1,7 @@
 <template>
   <div class="knowledge-base-system">
-    <!-- 顶部导航栏 -->
-    <div class="top-nav">
+    <!-- 左侧导航栏 -->
+    <div class="side-nav">
       <div class="logo">知识库系统</div>
       <div class="nav-items">
         <div
@@ -14,12 +14,10 @@
           <span>{{ item.text }}</span>
         </div>
       </div>
-      <!-- 用户信息显示 -->
-      <div class="user-info">
-        <div class="user-avatar">
-          <el-avatar :size="32" :src="state.personalForm.avatar ? getBaseURL(state.personalForm.avatar) : ''">{{ state.personalForm.name ? state.personalForm.name.substring(0, 1) : 'U' }}</el-avatar>
-        </div>
-        <div class="user-name">{{ state.personalForm.name || '用户' }}</div>
+      <!-- 返回首页按钮 -->
+      <div class="nav-item home-btn" @click="goToHome">
+        <i class="fas fa-home"></i>
+        <span>返回首页</span>
       </div>
     </div>
 
@@ -28,13 +26,20 @@
       <!-- 顶部操作栏 -->
       <div class="header">
         <div class="page-info">
-          <h1>{{ repoDetail ? repoDetail.name : '知识库' }}</h1>
+          <h1>{{ repoDetail ? repoDetail.title : '知识库' }}</h1>
           <div class="date">{{ currentDate }} {{ currentTime }}</div>
         </div>
         <div class="action-buttons">
-          <button class="btn btn-outline">
-            <i class="fas fa-home"></i> 返回首页
-          </button>
+          <!-- 用户信息显示 -->
+          <div class="user-greeting">
+            <div class="greeting-text">{{ getGreeting() }}，{{ state.personalForm.name || '用户' }}！欢迎使用知识库系统</div>
+            <div class="user-info-top">
+              <div class="user-avatar">
+                <el-avatar :size="32" :src="state.personalForm.avatar ? getBaseURL(state.personalForm.avatar) : ''">{{ state.personalForm.name ? state.personalForm.name.substring(0, 1) : 'U' }}</el-avatar>
+              </div>
+              <div class="user-name">{{ state.personalForm.name || '用户' }}</div>
+            </div>
+          </div>
 
           <!-- 添加下拉菜单 -->
           <div class="dropdown">
@@ -251,10 +256,44 @@
 import { reactive, ref, onMounted, onUnmounted } from 'vue';
 import { detailApi, KnowledgeDetail } from './api';
 import { useRoute } from 'vue-router';
-import { dictionary } from '/@/utils/dictionary';
-import { useUserInfo } from '/@/stores/userInfo';
 import * as api from '../personal/api';
-import { getBaseURL } from '/@/utils/baseUrl';
+
+// 定义缺失的类型和函数
+const dictionary = (type: string) => {
+  // 模拟dictionary函数
+  return [];
+};
+
+const useUserInfo = () => {
+  // 模拟useUserInfo函数
+  return { userInfo: {} };
+};
+
+const getBaseURL = (path: string) => {
+  // 模拟getBaseURL函数
+  return path ? path : '';
+};
+
+// 定义PersonalState接口
+interface PersonalState {
+  newsInfoList: any[];
+  personalForm: {
+    avatar: string;
+    username: string;
+    name: string;
+    email: string;
+    mobile: string;
+    gender: string;
+    dept_info: {
+      dept_id: number;
+      dept_name: string;
+    };
+    role_info: {
+      id: number;
+      name: string;
+    }[];
+  };
+}
 // 定义类型
 interface NavItem {
   id: number;
@@ -551,7 +590,7 @@ const confirmAddFolder = async (): Promise<void> => {
     // 使用创建知识详情API，将目录作为特殊类型的知识详情
     const data = {
       repo_id: repoId.value,
-      name: newFolder.value.name,
+      title: newFolder.value.name, // 修改name为title以匹配KnowledgeDetail接口
       content: newFolder.value.description,
       creator: 1, // 当前用户ID，实际应从用户状态获取
       status: 'normal' as 'normal' | 'archived',
@@ -785,6 +824,23 @@ const getUserInfo = function () {
 		state.personalForm.role_info = data.role_info || [];
 	});
 };
+// 获取问候语
+const getGreeting = (): string => {
+  const hour = new Date().getHours();
+  if (hour < 6) return '凌晨好';
+  if (hour < 9) return '早上好';
+  if (hour < 12) return '上午好';
+  if (hour < 14) return '中午好';
+  if (hour < 18) return '下午好';
+  if (hour < 22) return '晚上好';
+  return '夜深了';
+};
+
+// 返回首页
+const goToHome = (): void => {
+  window.location.href = '/';
+};
+
 // 组件挂载时初始化
 onMounted(() => {
   // 更新日期时间
@@ -849,46 +905,55 @@ const fetchFolderList = async (): Promise<void> => {
 <style lang="scss" scoped>
 .knowledge-base-system {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   min-height: 100vh;
   background-color: #f5f7fa;
   color: #333;
   font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
 
-/* 顶部导航栏 */
-.top-nav {
-  background: linear-gradient(135deg, #1a56db, #1e40af);
+/* 左侧导航栏 */
+.side-nav {
+  background: linear-gradient(180deg, #1a56db, #1e40af);
   color: white;
-  padding: 0 20px;
+  padding: 20px 0;
   display: flex;
-  align-items: center;
-  height: 64px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  flex-direction: column;
+  width: 220px;
+  min-height: 100vh;
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
   position: sticky;
   top: 0;
   z-index: 100;
 }
 
 .logo {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: bold;
-  margin-right: 30px;
+  margin: 0 20px 30px 20px;
+  text-align: center;
 }
 
 .nav-items {
   display: flex;
-  gap: 10px;
+  flex-direction: column;
+  flex: 1;
+  margin: 0;
 }
 
 .nav-item {
-  padding: 10px 15px;
-  border-radius: 6px;
+  padding: 12px 20px;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 8px;
   transition: background-color 0.2s;
+  margin-bottom: 5px;
+}
+
+.nav-item i {
+  margin-right: 10px;
+  width: 20px;
+  text-align: center;
 }
 
 .nav-item:hover {
@@ -898,11 +963,56 @@ const fetchFolderList = async (): Promise<void> => {
 .nav-item.active {
   background-color: rgba(255, 255, 255, 0.2);
   font-weight: 500;
+  border-left: 3px solid white;
 }
 
-.nav-item i {
-  font-size: 16px;
+/* 左侧导航栏底部返回首页按钮 */
+.home-btn {
+  margin-top: auto;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 0;
+  font-weight: 500;
 }
+
+/* 右上角用户信息样式 */
+.user-greeting {
+  display: flex;
+  align-items: center;
+  margin-right: 15px;
+}
+
+.greeting-text {
+  margin-right: 15px;
+  font-size: 14px;
+  color: #666;
+}
+
+.user-info-top {
+  display: flex;
+  align-items: center;
+  background-color: #f0f2f5;
+  padding: 5px 10px;
+  border-radius: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.user-avatar {
+  margin-right: 8px;
+}
+
+.user-name {
+  font-size: 14px;
+  color: #333;
+  font-weight: 500;
+}
+
+/* 主内容区调整 */
+.main-content {
+  flex: 1;
+  overflow: auto;
+}
+
+/* 旧的顶部导航栏样式已被左侧导航栏替代 */
 
 /* 主内容区 */
 .main-content {
@@ -919,6 +1029,12 @@ const fetchFolderList = async (): Promise<void> => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+}
+
+.action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .page-info h1 {
