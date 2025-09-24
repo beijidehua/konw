@@ -21,7 +21,7 @@
       <!-- 顶部操作栏 -->
       <div class="header">
         <div class="page-info">
-          <h1>知识库</h1>
+          <h1>{{ repoDetail ? repoDetail.title : '知识库' }}</h1>
           <div class="date">{{ currentDate }} {{ currentTime }}</div>
         </div>
         <div class="action-buttons">
@@ -111,12 +111,24 @@
 
           <div class="sidebar-card">
             <div class="card-header">
+              <div class="card-title">目录结构</div>
+            </div>
+            <div class="folder-list">
+              <div v-for="folder in folderList" :key="folder.id" class="folder-item" :style="{ marginLeft: `${(folder.dimension - 1) * 20}px` }">
+                <div class="folder-icon">📁</div>
+                <div class="folder-title">{{ folder.title }}</div>
+              </div>
+              <div v-if="folderList.length === 0" class="empty-message">暂无目录</div>
+            </div>
+          </div>
+          <div class="sidebar-card">
+            <div class="card-header">
               <div class="card-title">文档列表</div>
             </div>
             <div class="preview-list">
               <div v-for="doc in allDocs" :key="doc.id" class="preview-item">
                 <div class="preview-title">{{ doc.title }}</div>
-                <div class="preview-content">{{ doc.content }}</div>
+                <div class="preview-content">{{ doc.content || '' }}</div>
               </div>
             </div>
           </div>
@@ -163,6 +175,15 @@
           <div class="form-group">
             <label>目录描述</label>
             <textarea v-model="newFolder.description" placeholder="请输入目录描述"></textarea>
+          </div>
+          <div class="form-group">
+            <label>父级目录</label>
+            <select v-model="newFolder.parentId">
+              <option :value="0">顶级目录</option>
+              <option v-for="folder in folderList" :key="folder.id" :value="folder.id">
+                {{ folder.title }}
+              </option>
+            </select>
           </div>
           <div class="form-actions">
             <button class="btn btn-outline" @click="showFolderModal = false">取消</button>
@@ -219,406 +240,561 @@
   </div>
 </template>
 
-<script>
+<script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
+import { detailApi, KnowledgeDetail } from './api';
+import { useRoute } from 'vue-router';
 
-export default {
-  name: 'KnowledgeBaseSystem',
-  setup() {
-    // 导航菜单
-    const navItems = ref([
-      { id: 1, text: '概述', icon: 'fas fa-home', active: true },
-      { id: 2, text: '文档', icon: 'fas fa-file-alt', active: false },
-      { id: 3, text: '统计', icon: 'fas fa-chart-bar', active: false },
-      { id: 4, text: '设置', icon: 'fas fa-cog', active: false }
-    ]);
+// 定义类型
+interface NavItem {
+  id: number;
+  text: string;
+  icon: string;
+  active: boolean;
+}
 
-    // 激活导航项
-    const activateNav = (id) => {
-      navItems.value.forEach(item => {
-        item.active = item.id === id;
-      });
+interface DocItem {
+  id: number;
+  title: string;
+  date?: string;
+  content?: string;
+}
+
+interface FolderItem extends KnowledgeDetail {
+  dimension: number;
+  tree_path: string;
+}
+
+interface PermissionItem {
+  id: number;
+  title: string;
+  desc: string;
+}
+
+interface NewFolder {
+  name: string;
+  description: string;
+  parentId: number;
+}
+
+interface NewDoc {
+  title: string;
+  content: string;
+}
+
+// 组件名称
+const name = 'KnowledgeBaseSystem';
+
+// 导航菜单
+const navItems = ref<NavItem[]>([
+  { id: 1, text: '概述', icon: 'fas fa-home', active: true },
+  { id: 2, text: '文档', icon: 'fas fa-file-alt', active: false },
+  { id: 3, text: '统计', icon: 'fas fa-chart-bar', active: false },
+  { id: 4, text: '设置', icon: 'fas fa-cog', active: false }
+]);
+
+// 激活导航项
+const activateNav = (id: number): void => {
+  navItems.value.forEach(item => {
+    item.active = item.id === id;
+  });
+};
+
+// 当前日期和时间
+const currentDate = ref('');
+const currentTime = ref('');
+let timeInterval: number | null = null;
+
+// 更新日期和时间
+const updateDateTime = (): void => {
+  const now = new Date();
+  currentDate.value = now.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+  currentTime.value = now.toLocaleTimeString('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
+// 文档数据 - 初始化为空数组
+const frequentDocs = ref<DocItem[]>([]);
+const recentDocs = ref<DocItem[]>([]);
+const allDocs = ref<DocItem[]>([]);
+const permissions = ref<PermissionItem[]>([]);
+
+// 知识库详情数据
+const repoDetail = ref<KnowledgeDetail | null>(null);
+const repoId = ref<number>(1); // 设置默认值为1，避免null值导致API调用错误
+
+// 加载状态
+const loading = ref({
+  frequentDocs: true,
+  recentDocs: true,
+  allDocs: true,
+  permissions: true
+});
+
+// 模态框状态
+const showAddModal = ref(false);
+const showFolderModal = ref(false);
+const showMarkdownModal = ref(false);
+const showUploadModal = ref(false);
+const showAddDropdown = ref(false);
+
+// 新文档数据
+const newDoc = ref<NewDoc>({
+  title: '',
+  content: ''
+});
+
+// 新目录数据
+const newFolder = ref<NewFolder>({
+  name: '',
+  description: '',
+  parentId: 0 // 默认为顶级目录
+});
+
+// 目录列表
+const folderList = ref<FolderItem[]>([]);
+
+// 新Markdown数据
+const newMarkdown = ref<NewDoc>({
+  title: '',
+  content: ''
+});
+
+// 文件上传相关
+const fileInput = ref<HTMLInputElement | null>(null);
+const selectedFile = ref<File | null>(null);
+
+/**
+ * 获取常用文档
+ */
+const fetchFrequentDocs = async (): Promise<void> => {
+  try {
+    loading.value.frequentDocs = true;
+    const params = {
+      repo_id: repoId.value,
+      page: 1,
+      size: 5,
+      ordering: '-views' // 按浏览量排序
     };
+    
+    const res = await detailApi.getDetailList(params);
+    
+    // 适配后端响应格式
+    if (res.code === 2000) {
+      // 检查 res.data 是否为数组
+      const dataArray = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+      frequentDocs.value = dataArray.map((item: any) => ({
+        id: item.id,
+        title: item.title || item.name || '',
+        date: item.update_time || item.create_time || ''
+      }));
+    } else {
+      console.error('获取常用文档失败:', res.msg);
+    }
+  } catch (error) {
+    console.error('获取常用文档出错:', error);
+  } finally {
+    loading.value.frequentDocs = false;
+  }
+};
 
-    // 当前日期和时间
-    const currentDate = ref('');
-    const currentTime = ref('');
-    let timeInterval = null;
-
-    // 更新日期和时间
-    const updateDateTime = () => {
-      const now = new Date();
-      currentDate.value = now.toLocaleDateString('zh-CN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      });
-      currentTime.value = now.toLocaleTimeString('zh-CN', {
-        hour: '2-digit',
-        minute: '2-digit'
-      });
+/**
+ * 获取最新文档
+ */
+const fetchRecentDocs = async (): Promise<void> => {
+  try {
+    loading.value.recentDocs = true;
+    const params = {
+      repo_id: repoId.value,
+      page: 1,
+      size: 5,
+      ordering: '-create_time' // 按创建时间倒序
     };
+    
+    const res = await detailApi.getDetailList(params);
+    
+    if (res.code === 2000) {
+      // 检查 res.data 是否为数组
+      const dataArray = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+      recentDocs.value = dataArray.map((item: any) => ({
+        id: item.id,
+        title: item.title || item.name || '',
+        date: item.create_time || ''
+      }));
+    } else {
+      console.error('获取最新文档失败:', res.msg);
+    }
+  } catch (error) {
+    console.error('获取最新文档出错:', error);
+  } finally {
+    loading.value.recentDocs = false;
+  }
+};
 
-    // 文档数据 - 初始化为空数组
-    const frequentDocs = ref([]);
-    const recentDocs = ref([]);
-    const allDocs = ref([]);
-    const permissions = ref([]);
-
-    // 加载状态
-    const loading = ref({
-      frequentDocs: true,
-      recentDocs: true,
-      allDocs: true,
-      permissions: true
-    });
-
-    // API端点配置
-    const API_BASE = 'https://api.example.com/knowledge-base';
-    const API_ENDPOINTS = {
-      FREQUENT_DOCS: `${API_BASE}/documents/frequent`,
-      RECENT_DOCS: `${API_BASE}/documents/recent`,
-      ALL_DOCS: `${API_BASE}/documents`,
-      PERMISSIONS: `${API_BASE}/permissions`,
-      ADD_DOCUMENT: `${API_BASE}/documents`,
-      ADD_FOLDER: `${API_BASE}/folders`,
-      ADD_MARKDOWN: `${API_BASE}/markdown`,
-      UPLOAD_DOCUMENT: `${API_BASE}/upload`
+/**
+ * 获取所有文档
+ */
+const fetchAllDocs = async (): Promise<void> => {
+  try {
+    loading.value.allDocs = true;
+    const params = {
+      repo_id: repoId.value,
+      page: 1,
+      size: 10
     };
+    
+    const res = await detailApi.getDetailList(params);
+    
+    if (res.code === 2000) {
+      // 检查 res.data 是否为数组
+      const dataArray = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+      allDocs.value = dataArray.map((item: any) => ({
+        id: item.id,
+        title: item.title || item.name || '',
+        content: (item.content || item.description || '').substring(0, 50) + '...' // 截取部分内容
+      }));
+    } else {
+      console.error('获取所有文档失败:', res.msg);
+    }
+  } catch (error) {
+    console.error('获取所有文档出错:', error);
+  } finally {
+    loading.value.allDocs = false;
+  }
+};
 
-    // 获取常用文档
-    const fetchFrequentDocs = async () => {
-      try {
-        loading.value.frequentDocs = true;
-        const response = await fetch(API_ENDPOINTS.FREQUENT_DOCS);
-        if (!response.ok) throw new Error('获取常用文档失败');
-        frequentDocs.value = await response.json();
-      } catch (error) {
-        console.error('获取常用文档出错:', error);
-        // 可以在这里添加备用数据或错误处理
-      } finally {
-        loading.value.frequentDocs = false;
+/**
+ * 获取权限列表（示例函数，实际可能需要调整）
+ */
+const fetchPermissions = async (): Promise<void> => {
+  try {
+    loading.value.permissions = true;
+    // 这里使用模拟数据，因为API中没有对应的权限接口
+    permissions.value = [
+      { id: 1, title: '编辑权限', desc: '允许编辑知识库文档' },
+      { id: 2, title: '管理权限', desc: '允许管理知识库成员' },
+      { id: 3, title: '删除权限', desc: '允许删除知识库文档' }
+    ];
+  } catch (error) {
+    console.error('获取权限列表出错:', error);
+  } finally {
+    loading.value.permissions = false;
+  }
+};
+
+// 切换添加下拉菜单
+const toggleAddDropdown = (): void => {
+  showAddDropdown.value = !showAddDropdown.value;
+};
+
+// 添加目录
+const addFolder = (): void => {
+  showAddDropdown.value = false;
+  showFolderModal.value = true;
+};
+
+// 添加文档
+const addDocument = (): void => {
+  showAddDropdown.value = false;
+  showAddModal.value = true;
+};
+
+// 添加Markdown
+const addMarkdown = (): void => {
+  showAddDropdown.value = false;
+  showMarkdownModal.value = true;
+};
+
+// 确认添加目录
+const confirmAddFolder = async (): Promise<void> => {
+  if (!newFolder.value.name) {
+    alert('请输入目录名称');
+    return;
+  }
+
+  try {
+    // 获取父级目录信息
+    let parentDimension = 0;
+    let parentTreePath = '';
+    let parentId = newFolder.value.parentId;
+    
+    if (parentId > 0) {
+      // 查找父级目录
+      const parentFolder = folderList.value.find(folder => folder.id === parentId);
+      if (parentFolder) {
+        parentDimension = parentFolder.dimension || 0;
+        parentTreePath = parentFolder.tree_path || '';
       }
+    }
+    
+    // 计算当前目录深度和路径
+    const dimension = parentDimension > 0 ? parentDimension + 1 : 1;
+    const treePath = parentId > 0 ? 
+      (parentTreePath ? `${parentTreePath},${parentId}` : `${parentId}`) : '';
+    
+    // 使用创建知识详情API，将目录作为特殊类型的知识详情
+    const data = {
+      repo_id: repoId.value,
+      title: newFolder.value.name,
+      content: newFolder.value.description,
+      creator: 1, // 当前用户ID，实际应从用户状态获取
+      status: 'normal' as 'normal' | 'archived',
+      repository_id: repoId.value, // 添加 repository_id 字段
+      master: 1, // 目录负责人ID
+      parent_category_id: parentId, // 父级目录ID
+      sort: 0, // 默认排序值
+      dimension: dimension, // 目录深度
+      tree_path: treePath // 上级目录路径
     };
-
-    // 获取最新文档
-    const fetchRecentDocs = async () => {
-      try {
-        loading.value.recentDocs = true;
-        const response = await fetch(API_ENDPOINTS.RECENT_DOCS);
-        if (!response.ok) throw new Error('获取最新文档失败');
-        recentDocs.value = await response.json();
-      } catch (error) {
-        console.error('获取最新文档出错:', error);
-      } finally {
-        loading.value.recentDocs = false;
-      }
-    };
-
-    // 获取所有文档
-    const fetchAllDocs = async () => {
-      try {
-        loading.value.allDocs = true;
-        const response = await fetch(API_ENDPOINTS.ALL_DOCS);
-        if (!response.ok) throw new Error('获取文档列表失败');
-        allDocs.value = await response.json();
-      } catch (error) {
-        console.error('获取文档列表出错:', error);
-      } finally {
-        loading.value.allDocs = false;
-      }
-    };
-
-    // 获取权限列表
-    const fetchPermissions = async () => {
-      try {
-        loading.value.permissions = true;
-        const response = await fetch(API_ENDPOINTS.PERMISSIONS);
-        if (!response.ok) throw new Error('获取权限列表失败');
-        permissions.value = await response.json();
-      } catch (error) {
-        console.error('获取权限列表出错:', error);
-      } finally {
-        loading.value.permissions = false;
-      }
-    };
-
-    // 模态框状态
-    const showAddModal = ref(false);
-    const showFolderModal = ref(false);
-    const showMarkdownModal = ref(false);
-    const showUploadModal = ref(false);
-    const showAddDropdown = ref(false);
-
-    // 新文档数据
-    const newDoc = ref({
-      title: '',
-      content: ''
-    });
-
-    // 新目录数据
-    const newFolder = ref({
-      name: '',
-      description: ''
-    });
-
-    // 新Markdown数据
-    const newMarkdown = ref({
-      title: '',
-      content: ''
-    });
-
-    // 文件上传相关
-    const fileInput = ref(null);
-    const selectedFile = ref(null);
-
-    // 切换添加下拉菜单
-    const toggleAddDropdown = () => {
-      showAddDropdown.value = !showAddDropdown.value;
-    };
-
-    // 添加目录
-    const addFolder = () => {
-      showAddDropdown.value = false;
-      showFolderModal.value = true;
-    };
-
-    // 添加文档
-    const addDocument = () => {
-      showAddDropdown.value = false;
-      showAddModal.value = true;
-    };
-
-    // 添加Markdown
-    const addMarkdown = () => {
-      showAddDropdown.value = false;
-      showMarkdownModal.value = true;
-    };
-
-    // 确认添加目录
-    const confirmAddFolder = async () => {
-      if (!newFolder.value.name) {
-        alert('请输入目录名称');
-        return;
-      }
-
-      try {
-        const response = await fetch(API_ENDPOINTS.ADD_FOLDER, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(newFolder.value)
-        });
-        
-        if (!response.ok) throw new Error('创建目录失败');
-        
-        const result = await response.json();
-        alert(`已创建目录: ${result.name}`);
-        showFolderModal.value = false;
-        newFolder.value = { name: '', description: '' };
-        
-        // 刷新文档列表
-        fetchAllDocs();
-      } catch (error) {
-        console.error('创建目录出错:', error);
-        alert('创建目录失败，请重试');
-      }
-    };
-
-    // 确认添加文档
-    const confirmAddDocument = async () => {
-      if (!newDoc.value.title || !newDoc.value.content) {
-        alert('请填写文档标题和内容');
-        return;
-      }
-
-      try {
-        const response = await fetch(API_ENDPOINTS.ADD_DOCUMENT, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(newDoc.value)
-        });
-        
-        if (!response.ok) throw new Error('添加文档失败');
-        
-        const result = await response.json();
-        alert(`文档添加成功: ${result.title}`);
-        newDoc.value = { title: '', content: '' };
-        showAddModal.value = false;
-        
-        // 刷新文档列表
-        fetchRecentDocs();
-        fetchAllDocs();
-      } catch (error) {
-        console.error('添加文档出错:', error);
-        alert('添加文档失败，请重试');
-      }
-    };
-
-    // 确认添加Markdown
-    const confirmAddMarkdown = async () => {
-      if (!newMarkdown.value.title || !newMarkdown.value.content) {
-        alert('请填写文档标题和内容');
-        return;
-      }
-
-      try {
-        const response = await fetch(API_ENDPOINTS.ADD_MARKDOWN, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(newMarkdown.value)
-        });
-        
-        if (!response.ok) throw new Error('添加Markdown文档失败');
-        
-        const result = await response.json();
-        alert(`Markdown文档添加成功: ${result.title}`);
-        newMarkdown.value = { title: '', content: '' };
-        showMarkdownModal.value = false;
-        
-        // 刷新文档列表
-        fetchRecentDocs();
-        fetchAllDocs();
-      } catch (error) {
-        console.error('添加Markdown文档出错:', error);
-        alert('添加Markdown文档失败，请重试');
-      }
-    };
-
-    // 触发文件选择
-    const triggerFileInput = () => {
-      fileInput.value.click();
-    };
-
-    // 处理文件选择
-    const handleFileUpload = (event) => {
-      selectedFile.value = event.target.files[0];
-      if (selectedFile.value) {
-        alert(`已选择文件: ${selectedFile.value.name}`);
-      }
-    };
-
-    // 上传文档
-    const uploadDocument = async () => {
-      if (!selectedFile.value) {
-        alert('请先选择要上传的文件');
-        return;
-      }
-
-      try {
-        const formData = new FormData();
-        formData.append('file', selectedFile.value);
-        
-        const response = await fetch(API_ENDPOINTS.UPLOAD_DOCUMENT, {
-          method: 'POST',
-          body: formData
-        });
-        
-        if (!response.ok) throw new Error('上传文档失败');
-        
-        const result = await response.json();
-        alert(`文档上传成功: ${result.filename}`);
-        showUploadModal.value = false;
-        selectedFile.value = null;
-        
-        // 刷新文档列表
-        fetchRecentDocs();
-        fetchAllDocs();
-      } catch (error) {
-        console.error('上传文档出错:', error);
-        alert('上传文档失败，请重试');
-      }
-    };
-
-    // 申请权限
-    const requestPermission = async (permissionId) => {
-      try {
-        const permission = permissions.value.find(p => p.id === permissionId);
-        if (!permission) return;
-        
-        const response = await fetch(`${API_BASE}/permissions/request`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ permissionId })
-        });
-        
-        if (!response.ok) throw new Error('申请权限失败');
-        
-        alert(`已申请权限: ${permission.title}`);
-      } catch (error) {
-        console.error('申请权限出错:', error);
-        alert('申请权限失败，请重试');
-      }
-    };
-
-    // 点击外部关闭下拉菜单
-    const closeDropdownOnClickOutside = (event) => {
-      if (showAddDropdown.value && !event.target.closest('.dropdown')) {
-        showAddDropdown.value = false;
-      }
-    };
-
-    // 组件挂载时启动时钟并获取数据
-    onMounted(() => {
-      updateDateTime();
-      timeInterval = setInterval(updateDateTime, 60000);
-      document.addEventListener('click', closeDropdownOnClickOutside);
+    
+    const res = await detailApi.createDetail(data);
+    
+    if (res.code === 2000) {
+      alert(`已创建目录: ${newFolder.value.name}`);
+      showFolderModal.value = false;
+      newFolder.value = { name: '', description: '', parentId: 0 };
       
-      // 获取初始数据
-      fetchFrequentDocs();
+      // 刷新文档列表和目录列表
+      fetchAllDocs();
+      fetchFolderList();
+    } else {
+      console.error('创建目录失败:', res.msg);
+      alert(`创建目录失败: ${res.msg}`);
+    }
+  } catch (error) {
+    console.error('创建目录出错:', error);
+    alert('创建目录失败，请重试');
+  }
+};
+
+// 确认添加文档
+const confirmAddDocument = async (): Promise<void> => {
+  if (!newDoc.value.title || !newDoc.value.content) {
+    alert('请填写文档标题和内容');
+    return;
+  }
+
+  try {
+    const data = {
+      repo_id: repoId.value,
+      title: newDoc.value.title,
+      content: newDoc.value.content,
+      creator: 1, // 当前用户ID，实际应从用户状态获取
+      status: 'normal' as 'normal' | 'archived'
+    };
+    
+    const res = await detailApi.createDetail(data);
+    
+    if (res.code === 2000) {
+      alert(`文档添加成功: ${newDoc.value.title}`);
+      newDoc.value = { title: '', content: '' };
+      showAddModal.value = false;
+      
+      // 刷新文档列表
       fetchRecentDocs();
       fetchAllDocs();
-      fetchPermissions();
-    });
-
-    // 组件卸载时清除时钟
-    onUnmounted(() => {
-      if (timeInterval) clearInterval(timeInterval);
-      document.removeEventListener('click', closeDropdownOnClickOutside);
-    });
-
-    return {
-      navItems,
-      activateNav,
-      currentDate,
-      currentTime,
-      frequentDocs,
-      recentDocs,
-      allDocs,
-      permissions,
-      showAddModal,
-      showFolderModal,
-      showMarkdownModal,
-      showUploadModal,
-      showAddDropdown,
-      newDoc,
-      newFolder,
-      newMarkdown,
-      fileInput,
-      loading,
-      toggleAddDropdown,
-      addFolder,
-      addDocument,
-      addMarkdown,
-      confirmAddFolder,
-      confirmAddDocument,
-      confirmAddMarkdown,
-      triggerFileInput,
-      handleFileUpload,
-      uploadDocument,
-      requestPermission
-    };
+    } else {
+      console.error('添加文档失败:', res.msg);
+      alert(`添加文档失败: ${res.msg}`);
+    }
+  } catch (error) {
+    console.error('添加文档出错:', error);
+    alert('添加文档失败，请重试');
   }
-}
-</script>
+};
 
+// 确认添加Markdown
+const confirmAddMarkdown = async (): Promise<void> => {
+  if (!newMarkdown.value.title || !newMarkdown.value.content) {
+    alert('请填写文档标题和内容');
+    return;
+  }
+
+  try {
+    // 使用创建知识详情API
+    const data = {
+      repo_id: repoId.value,
+      title: newMarkdown.value.title,
+      content: newMarkdown.value.content,
+      creator: 1,
+      status: 'normal' as 'normal' | 'archived'
+    };
+    
+    const res = await detailApi.createDetail(data);
+    
+    if (res.code === 2000) {
+      alert(`Markdown文档添加成功: ${newMarkdown.value.title}`);
+      newMarkdown.value = { title: '', content: '' };
+      showMarkdownModal.value = false;
+      
+      // 刷新文档列表
+      fetchRecentDocs();
+      fetchAllDocs();
+    } else {
+      console.error('添加Markdown文档失败:', res.msg);
+      alert(`添加Markdown文档失败: ${res.msg}`);
+    }
+  } catch (error) {
+    console.error('添加Markdown文档出错:', error);
+    alert('添加Markdown文档失败，请重试');
+  }
+};
+
+// 触发文件选择
+const triggerFileInput = (): void => {
+  if (fileInput.value) {
+    fileInput.value.click();
+  }
+};
+
+// 处理文件选择
+const handleFileUpload = (event: Event): void => {
+  const target = event.target as HTMLInputElement;
+  if (target.files && target.files.length > 0) {
+    selectedFile.value = target.files[0];
+    if (selectedFile.value) {
+      alert(`已选择文件: ${selectedFile.value.name}`);
+    }
+  }
+};
+
+// 上传文档
+const uploadDocument = async (): Promise<void> => {
+  if (!selectedFile.value) {
+    alert('请先选择要上传的文件');
+    return;
+  }
+
+  try {
+    // 模拟文件上传成功后创建知识详情
+    // 实际项目中应先上传文件，然后用返回的URL创建知识详情
+    const data = {
+      repo_id: repoId.value,
+      title: selectedFile.value.name,
+      content: `上传的文件内容: ${selectedFile.value.name}`,
+      creator: 1,
+      status: 'normal' as 'normal' | 'archived'
+    };
+    
+    const res = await detailApi.createDetail(data);
+    
+    if (res.code === 2000) {
+      alert(`文档上传成功: ${selectedFile.value.name}`);
+      selectedFile.value = null;
+      showUploadModal.value = false;
+      
+      // 刷新文档列表
+      fetchRecentDocs();
+      fetchAllDocs();
+    } else {
+      console.error('上传文档失败:', res.msg);
+      alert(`上传文档失败: ${res.msg}`);
+    }
+  } catch (error) {
+    console.error('上传文档出错:', error);
+    alert('上传文档失败，请重试');
+  }
+};
+
+// 申请权限
+const requestPermission = (permId: number): void => {
+  alert(`已申请权限ID: ${permId}`);
+};
+
+// 从URL获取知识库ID
+const getRepoIdFromUrl = (): void => {
+  const route = useRoute();
+  if (route.params.id) {
+    repoId.value = Number(route.params.id);
+  }
+};
+
+// 获取知识库详情
+const fetchRepoDetail = async (): Promise<void> => {
+  if (!repoId.value) return; // 如果没有有效的ID，则不发送请求
+  
+  try {
+    const res = await detailApi.getDetail(repoId.value);
+    if (res.code === 2000 && res.data && Array.isArray(res.data) && res.data.length > 0) {
+      repoDetail.value = res.data[0];
+      document.title = `${res.data[0].title || '知识库'} - 知识库系统`;
+    } else if (res.code === 2000 && res.data) {
+      // 处理直接返回对象的情况
+      repoDetail.value = res.data;
+      document.title = `${res.data.title || '知识库'} - 知识库系统`;
+    } else {
+      console.error('获取知识库详情失败:', res.msg);
+    }
+  } catch (error) {
+    console.error('获取知识库详情出错:', error);
+  }
+};
+
+// 组件挂载时初始化
+onMounted(() => {
+  // 更新日期时间
+  updateDateTime();
+  timeInterval = window.setInterval(updateDateTime, 60000); // 每分钟更新一次
+
+  // 从URL获取知识库ID
+  getRepoIdFromUrl();
+  
+  // 获取知识库详情
+  fetchRepoDetail();
+
+  // 获取数据
+  fetchFrequentDocs();
+  fetchRecentDocs();
+  fetchAllDocs();
+  fetchFolderList(); // 获取目录列表
+  fetchPermissions();
+
+  // 点击外部关闭下拉菜单
+  document.addEventListener('click', () => {
+    showAddDropdown.value = false;
+  });
+});
+
+// 组件卸载时清理
+onUnmounted(() => {
+  if (timeInterval) clearInterval(timeInterval);
+  document.removeEventListener('click', () => {
+    showAddDropdown.value = false;
+  });
+});
+
+/**
+ * 获取目录列表
+ */
+const fetchFolderList = async (): Promise<void> => {
+  try {
+    const params = {
+      repo_id: repoId.value,
+      page: 1,
+      size: 100 // 获取足够多的目录
+    };
+    
+    const res = await detailApi.getDetailList(params);
+    
+    if (res.code === 2000) {
+      // 检查 res.data 是否为数组
+      const dataArray = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+      // 过滤出目录类型的数据
+      folderList.value = dataArray.filter((item: any) => item.dimension !== undefined) as FolderItem[];
+    } else {
+      console.error('获取目录列表失败:', res.msg);
+    }
+  } catch (error) {
+    console.error('获取目录列表出错:', error);
+  }
+};
+</script>
 
 <style scoped>
 .knowledge-base-system {
@@ -652,228 +828,210 @@ export default {
 
 .nav-items {
   display: flex;
-  height: 100%;
+  gap: 10px;
 }
 
 .nav-item {
-  padding: 0 20px;
+  padding: 10px 15px;
+  border-radius: 6px;
+  cursor: pointer;
   display: flex;
   align-items: center;
-  cursor: pointer;
-  transition: all 0.3s;
-  height: 100%;
-  position: relative;
+  gap: 8px;
+  transition: background-color 0.2s;
 }
 
 .nav-item:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
 .nav-item.active {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.nav-item.active::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: white;
+  background-color: rgba(255, 255, 255, 0.2);
+  font-weight: 500;
 }
 
 .nav-item i {
-  margin-right: 8px;
   font-size: 16px;
 }
 
 /* 主内容区 */
 .main-content {
   flex: 1;
-  display: flex;
-  flex-direction: column;
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 /* 顶部操作栏 */
 .header {
-  background: white;
-  padding: 16px 24px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 20px;
 }
 
 .page-info h1 {
-  font-size: 22px;
+  font-size: 24px;
+  margin: 0 0 5px;
   font-weight: 600;
-  color: #1f2937;
 }
 
-.page-info .date {
-  color: #6b7280;
+.date {
+  color: #666;
   font-size: 14px;
-  margin-top: 4px;
 }
 
 .action-buttons {
   display: flex;
-  gap: 12px;
-  position: relative;
+  gap: 10px;
+  align-items: center;
 }
 
 .btn {
   padding: 8px 16px;
   border-radius: 6px;
-  font-weight: 500;
+  font-size: 14px;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
-  transition: all 0.2s;
-}
-
-.btn-primary {
-  background: #1d4ed8;
-  color: white;
+  gap: 8px;
   border: none;
-}
-
-.btn-primary:hover {
-  background: #1e40af;
+  transition: all 0.2s;
 }
 
 .btn-outline {
-  background: white;
-  border: 1px solid #d1d5db;
-  color: #4b5563;
+  background-color: transparent;
+  border: 1px solid #ddd;
+  color: #333;
 }
 
 .btn-outline:hover {
-  background: #f9fafb;
+  background-color: #f5f5f5;
+}
+
+.btn-primary {
+  background-color: #1a56db;
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #1e40af;
 }
 
 .btn-icon {
-  padding: 8px 12px;
-  border-radius: 6px;
-  background: white;
-  border: 1px solid #e5e7eb;
-  color: #4b5563;
-  cursor: pointer;
-}
-
-.btn-icon:hover {
-  background: #f3f4f6;
-}
-
-/* 下拉菜单样式 */
-.dropdown {
-  position: relative;
-  display: inline-block;
-}
-
-.dropdown-toggle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  background: #1d4ed8;
-  color: white;
-  border: none;
-  border-radius: 6px;
+  justify-content: center;
+  background-color: transparent;
+  border: 1px solid #ddd;
+  color: #333;
   cursor: pointer;
   transition: all 0.2s;
 }
 
-.dropdown-toggle:hover {
-  background: #1e40af;
+.btn-icon:hover {
+  background-color: #f5f5f5;
+}
+
+/* 下拉菜单 */
+.dropdown {
+  position: relative;
+}
+
+.dropdown-toggle {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: transparent;
+  border: 1px solid #ddd;
+  color: #333;
 }
 
 .dropdown-menu {
   position: absolute;
   top: 100%;
-  left: 0;
-  background: white;
+  right: 0;
+  margin-top: 5px;
+  background-color: white;
   border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  min-width: 180px;
-  z-index: 1000;
-  overflow: hidden;
-  margin-top: 8px;
-  opacity: 0;
-  transform: translateY(-10px);
-  transition: all 0.3s ease;
-  pointer-events: none;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  width: 150px;
+  z-index: 10;
+  display: none;
 }
 
 .dropdown-menu.show {
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
+  display: block;
 }
 
 .dropdown-item {
-  padding: 10px 16px;
+  padding: 10px 15px;
   display: flex;
   align-items: center;
   gap: 10px;
   cursor: pointer;
-  transition: all 0.2s;
-  color: #4b5563;
+  transition: background-color 0.2s;
 }
 
 .dropdown-item:hover {
-  background: #f3f4f6;
+  background-color: #f5f7fa;
 }
 
 .dropdown-item i {
-  width: 20px;
-  text-align: center;
+  color: #666;
 }
 
 /* 内容区域 */
 .content {
-  flex: 1;
-  padding: 24px;
   display: grid;
-  grid-template-columns: 1fr 320px;
-  gap: 24px;
-  overflow-y: auto;
+  grid-template-columns: 1fr 300px;
+  gap: 20px;
+}
+
+/* 左侧文档列表 */
+.left-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .card {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  padding: 20px;
-  margin-bottom: 20px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
 }
 
 .card-header {
+  padding: 15px 20px;
+  border-bottom: 1px solid #eee;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #f3f4f6;
 }
 
 .card-title {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
-  color: #1f2937;
 }
 
 .doc-list {
-  display: flex;
-  flex-direction: column;
+  padding: 10px 0;
 }
 
 .doc-item {
-  padding: 12px 0;
-  border-bottom: 1px solid #f3f4f6;
+  padding: 10px 20px;
+  border-bottom: 1px solid #f5f5f5;
   cursor: pointer;
+  transition: background-color 0.2s;
 }
 
 .doc-item:last-child {
@@ -881,89 +1039,107 @@ export default {
 }
 
 .doc-item:hover {
-  background: #f9fafb;
+  background-color: #f9fafb;
 }
 
 .doc-title {
-  font-weight: 500;
-  margin-bottom: 4px;
-  color: #1f2937;
+  font-size: 14px;
+  margin-bottom: 5px;
 }
 
 .doc-date {
   font-size: 12px;
-  color: #6b7280;
+  color: #666;
+}
+
+/* 右侧边栏 */
+.right-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .sidebar-card {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  padding: 20px;
-  margin-bottom: 20px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.perm-list {
+  padding: 10px 0;
 }
 
 .perm-item {
+  padding: 10px 20px;
+  border-bottom: 1px solid #f5f5f5;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 0;
-  border-bottom: 1px solid #f3f4f6;
 }
 
-.perm-info {
-  flex: 1;
+.perm-item:last-child {
+  border-bottom: none;
 }
 
 .perm-title {
-  font-weight: 500;
-  margin-bottom: 4px;
+  font-size: 14px;
+  margin-bottom: 3px;
 }
 
 .perm-desc {
   font-size: 12px;
-  color: #6b7280;
+  color: #666;
 }
 
 .perm-btn {
-  background: #10b981;
+  padding: 5px 10px;
+  background-color: #1a56db;
   color: white;
   border: none;
-  padding: 6px 12px;
   border-radius: 4px;
-  font-size: 12px;
   cursor: pointer;
+  font-size: 12px;
+}
+
+.perm-btn:hover {
+  background-color: #1e40af;
+}
+
+.preview-list {
+  padding: 10px 0;
 }
 
 .preview-item {
-  padding: 12px 0;
-  border-bottom: 1px solid #f3f4f6;
+  padding: 15px 20px;
+  border-bottom: 1px solid #f5f5f5;
+  cursor: pointer;
+}
+
+.preview-item:last-child {
+  border-bottom: none;
 }
 
 .preview-title {
+  font-size: 14px;
   font-weight: 500;
-  margin-bottom: 6px;
-  color: #1f2937;
+  margin-bottom: 5px;
 }
 
 .preview-content {
-  font-size: 13px;
-  color: #6b7280;
+  font-size: 12px;
+  color: #666;
   line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
-/* 模态框样式 */
+/* 模态框 */
 .modal {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -971,22 +1147,25 @@ export default {
 }
 
 .modal-content {
-  background: white;
-  border-radius: 12px;
+  background-color: white;
+  border-radius: 8px;
   width: 500px;
   max-width: 90%;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 }
 
 .modal-header {
-  padding: 16px 24px;
-  border-bottom: 1px solid #f3f4f6;
+  padding: 15px 20px;
+  border-bottom: 1px solid #eee;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
 .modal-header h3 {
+  margin: 0;
   font-size: 18px;
   font-weight: 600;
 }
@@ -996,30 +1175,30 @@ export default {
   border: none;
   font-size: 24px;
   cursor: pointer;
-  color: #6b7280;
+  color: #666;
 }
 
 .modal-body {
-  padding: 24px;
+  padding: 20px;
 }
 
 .form-group {
-  margin-bottom: 16px;
+  margin-bottom: 15px;
 }
 
 .form-group label {
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 5px;
+  font-size: 14px;
   font-weight: 500;
-  color: #374151;
 }
 
 .form-group input,
 .form-group textarea {
   width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
   font-size: 14px;
 }
 
@@ -1031,37 +1210,73 @@ export default {
 .form-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
+  gap: 10px;
   margin-top: 20px;
 }
 
+/* 上传区域 */
 .upload-area {
-  border: 2px dashed #d1d5db;
+  border: 2px dashed #ddd;
   border-radius: 8px;
-  padding: 40px 20px;
+  padding: 30px;
   text-align: center;
-  background: #f9fafb;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.2s;
 }
 
 .upload-area:hover {
-  border-color: #3b82f6;
-  background: #eff6ff;
+  border-color: #1a56db;
+  background-color: #f9fafb;
 }
 
 .upload-area i {
   font-size: 48px;
-  color: #9ca3af;
-  margin-bottom: 16px;
+  color: #1a56db;
+  margin-bottom: 10px;
 }
 
 .upload-area p {
-  color: #6b7280;
+  margin: 0;
+  color: #666;
 }
 
-.upload-area span {
-  color: #3b82f6;
-  text-decoration: underline;
+.upload-area p span {
+  color: #1a56db;
+  font-weight: 500;
+}
+/* 目录列表样式 */
+.folder-list {
+  margin-top: 10px;
+}
+
+.folder-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 4px;
+  margin-bottom: 5px;
+  transition: background-color 0.2s;
+}
+
+.folder-item:hover {
+  background-color: #f5f5f5;
+  cursor: pointer;
+}
+
+.folder-icon {
+  margin-right: 8px;
+  font-size: 16px;
+}
+
+.folder-title {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.empty-message {
+  color: #999;
+  text-align: center;
+  padding: 15px 0;
+  font-size: 14px;
 }
 </style>

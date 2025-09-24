@@ -559,7 +559,8 @@ const handleViewDetail = (id) => {
     name: 'knowledge_detail', // 目标详情页的路由名称（确保与路由配置一致）
     params: { id } // 传递知识库ID参数（与现有逻辑一致）
   });
-  // 2. 新窗口打开详情页（_blank 表示新窗口）
+  // 2. 新窗口打开详情页，并携带知识库ID参数（_blank 表示新窗口）
+  window.open(`${detailRoute.href}?id=${id}`, '_blank');
   window.open(detailRoute.href, '_blank');
   // router.push({
   //   name: 'mmOverview',

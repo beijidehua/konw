@@ -5,6 +5,7 @@ from pathlib import PurePosixPath
 
 from django.contrib.auth.models import AbstractUser, UserManager
 from django.db import models
+from django.core.validators import MinValueValidator
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from application import dispatch
 from dvadmin.utils.models import CoreModel, table_prefix, get_custom_app_models
@@ -718,10 +719,6 @@ class DownloadCenter(CoreModel):
 
 from django.db import models
 from django.contrib.auth import get_user_model
-
-User = get_user_model()
-
-
 # class DvadminSystemDictionary(models.Model):
 #     TYPE_CHOICES = (
 #         (0, 'text'),
@@ -762,8 +759,7 @@ User = get_user_model()
 #         return f"{self.label} ({self.value})" if self.label else str(self.id)
 
 
-from django.db import models
-from django.contrib.auth import get_user_model
+
 
 User = get_user_model()
 
@@ -862,3 +858,137 @@ class MmRepository(models.Model):
 
     def __str__(self):
         return self.name
+
+    # 目录表
+class Category(models.Model):
+    """
+    目录表 Model，对应数据库中的 category 表
+    用于存储知识库的目录结构，支持多级目录（自关联）
+    """
+    # 1. 目录唯一ID：对应表中 id（Django 主键默认自增，无需额外指定 AUTOINCREMENT）
+    id = models.IntegerField(primary_key=True, verbose_name="目录ID")
+
+    # 2. 目录名称：对应表中 name（非空约束，最大长度建议根据业务定义，此处设为100）
+    name = models.CharField(
+        max_length=100,
+        null=False,
+        blank=False,  # blank=False 控制表单层面不允许空值，与 null=False 配合确保数据完整性
+        verbose_name="目录名称"
+    )
+
+    # 3. 所属知识库ID：对应表中 repository_id（非空，关联知识库表，此处用 IntegerField 存ID）
+    # 注：若后续需建立强关联，可改为 ForeignKey(Repository, on_delete=models.CASCADE)
+    repository_id = models.IntegerField(
+        null=False,
+        blank=False,
+        verbose_name="所属知识库ID"
+    )
+
+    # 4. 父级目录ID：对应表中 parent_category_id（自关联，允许为空，顶级目录存 None）
+    # related_name="children" 便于通过父目录查询子目录（如 parent.children.all()）
+    parent_category = models.ForeignKey(
+        "self",  # 关联自身表
+        on_delete=models.SET_NULL,  # 若父目录被删除，子目录的父ID设为 None（避免数据丢失）
+        null=True,
+        blank=True,
+        related_name="children",
+        verbose_name="父级目录"
+    )
+
+    # 5. 目录负责人ID：对应表中 master（非空，关联用户表，此处用 IntegerField 存ID）
+    # 注：若需强关联用户表，可改为 ForeignKey(User, on_delete=models.PROTECT)
+    master = models.IntegerField(
+        null=False,
+        blank=False,
+        verbose_name="负责人ID"
+    )
+
+    # 6. 更新时间：对应表中 update_time（默认当前时间，更新时自动刷新）
+    # auto_now=True 表示每次 save() 时自动更新为当前时间，无需手动维护
+    update_time = models.DateTimeField(
+        null=False,
+        blank=False,
+        default=timezone.now,
+        verbose_name="更新时间"
+    )
+
+    # 7. 目录图标路径：对应表中 icon_url（允许为空，存储图标文件路径或URL）
+    icon_url = models.CharField(
+        max_length=255,  # 足够存储文件路径或网络URL
+        null=True,
+        blank=True,
+        verbose_name="图标路径"
+    )
+
+    # 8. 排序值：对应表中 sort（非空，同层级按此值升序排列）
+    sort = models.IntegerField(
+        null=False,
+        blank=False,
+        default=0,  # 默认排序值设为0，便于新目录默认排在后面
+        verbose_name="排序值"
+    )
+
+    # 9. 目录深度：对应表中 dimension（非空，最小值1，顶级目录为1，子目录=父目录深度+1）
+    # 注：建议通过信号（signals）自动维护深度，避免手动输入错误
+    dimension = models.IntegerField(
+        null=False,
+        blank=False,
+        default=1,
+        validators=[MinValueValidator(1)],  # 强制最小值为1，对应表中 CHECK 约束
+        verbose_name="目录深度"
+    )
+
+    # 10. 上级目录路径：对应表中 tree_path（格式如“101,102,103”，顶级目录留空）
+    # 注：建议通过信号自动维护路径，例如父目录路径 + 当前ID，避免手动拼接错误
+    tree_path = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        verbose_name="上级目录路径"
+    )
+
+    class Meta:
+        """
+        Model 元数据配置，控制数据库表名、排序方式、索引等
+        """
+        # 数据库表名：强制指定为 "category"，与原始表结构一致（避免 Django 自动加后缀）
+        db_table = "category"
+        # 默认排序：同知识库、同父目录下，按 sort 升序排列（符合业务逻辑）
+        ordering = ["repository_id", "parent_category", "sort"]
+        # 索引：为高频查询字段添加索引，提升查询效率
+        indexes = [
+            # 按“知识库ID+父目录ID”查询子目录（最常用场景）
+            models.Index(fields=["repository_id", "parent_category"]),
+            # 按“负责人ID”查询目录
+            models.Index(fields=["master"]),
+            # 按“目录深度”查询（如筛选所有顶级目录：dimension=1）
+            models.Index(fields=["dimension"]),
+        ]
+        # 后台管理界面显示的模型名称（中文友好）
+        verbose_name = "目录"
+        verbose_name_plural = "目录列表"
+
+    def __str__(self):
+        """
+        定义模型实例的字符串表示（如在后台管理界面显示目录名称，便于识别）
+        """
+        return self.name
+
+    def save(self, *args, **kwargs):
+        """
+        重写保存方法，自动维护 `dimension`（目录深度）和 `tree_path`（上级路径）
+        避免手动计算错误，确保数据一致性
+        """
+        # 1. 处理目录深度：顶级目录（无父目录）深度为1，子目录=父目录深度+1
+        if not self.parent_category:
+            self.dimension = 1
+            self.tree_path = ""  # 顶级目录路径为空
+        else:
+            self.dimension = self.parent_category.dimension + 1
+            # 拼接路径：父目录路径 + 父目录ID + 逗号（如父路径“101”，则当前路径“101,102”）
+            parent_path = self.parent_category.tree_path or ""
+            self.tree_path = f"{parent_path},{self.parent_category.id}" if parent_path else str(
+                self.parent_category.id)
+
+        # 2. 调用父类 save 方法，完成数据入库
+        super().save(*args, **kwargs)
