@@ -541,7 +541,7 @@ const confirmAddFolder = async (): Promise<void> => {
     // 使用创建知识详情API，将目录作为特殊类型的知识详情
     const data = {
       repo_id: repoId.value,
-      title: newFolder.value.name,
+      name: newFolder.value.name,
       content: newFolder.value.description,
       creator: 1, // 当前用户ID，实际应从用户状态获取
       status: 'normal' as 'normal' | 'archived',
