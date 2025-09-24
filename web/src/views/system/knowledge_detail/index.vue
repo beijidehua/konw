@@ -14,6 +14,13 @@
           <span>{{ item.text }}</span>
         </div>
       </div>
+      <!-- 用户信息显示 -->
+      <div class="user-info">
+        <div class="user-avatar">
+          <el-avatar :size="32" :src="state.personalForm.avatar ? getBaseURL(state.personalForm.avatar) : ''">{{ state.personalForm.name ? state.personalForm.name.substring(0, 1) : 'U' }}</el-avatar>
+        </div>
+        <div class="user-name">{{ state.personalForm.name || '用户' }}</div>
+      </div>
     </div>
 
     <!-- 主内容区 -->
@@ -21,7 +28,7 @@
       <!-- 顶部操作栏 -->
       <div class="header">
         <div class="page-info">
-          <h1>{{ repoDetail ? repoDetail.title : '知识库' }}</h1>
+          <h1>{{ repoDetail ? repoDetail.name : '知识库' }}</h1>
           <div class="date">{{ currentDate }} {{ currentTime }}</div>
         </div>
         <div class="action-buttons">
@@ -241,10 +248,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { reactive, ref, onMounted, onUnmounted } from 'vue';
 import { detailApi, KnowledgeDetail } from './api';
 import { useRoute } from 'vue-router';
-
+import { dictionary } from '/@/utils/dictionary';
+import { useUserInfo } from '/@/stores/userInfo';
+import * as api from '../personal/api';
+import { getBaseURL } from '/@/utils/baseUrl';
 // 定义类型
 interface NavItem {
   id: number;
@@ -735,7 +745,46 @@ const fetchRepoDetail = async (): Promise<void> => {
     console.error('获取知识库详情出错:', error);
   }
 };
-
+//获取用户信息
+/**
+ * 获取用户个人信息
+ */
+const genderList = ref();
+const state = reactive<PersonalState>({
+	newsInfoList: [],
+	personalForm: {
+		avatar: '',
+		username: '',
+		name: '',
+		email: '',
+		mobile: '',
+		gender: '',
+		dept_info: {
+			dept_id: 0,
+			dept_name: '',
+		},
+		role_info: [
+			{
+				id: 0,
+				name: '',
+			},
+		],
+	},
+});
+const getUserInfo = function () {
+	api.GetUserInfo({}).then((res: any) => {
+		const { data } = res;
+		genderList.value = dictionary('gender');
+		state.personalForm.avatar = data.avatar || '';
+		state.personalForm.username = data.username || '';
+		state.personalForm.name = data.name || '';
+		state.personalForm.email = data.email || '';
+		state.personalForm.mobile = data.mobile || '';
+		state.personalForm.gender = data.gender;
+		state.personalForm.dept_info.dept_name = data.dept_info.dept_name || '';
+		state.personalForm.role_info = data.role_info || [];
+	});
+};
 // 组件挂载时初始化
 onMounted(() => {
   // 更新日期时间
@@ -747,7 +796,8 @@ onMounted(() => {
   
   // 获取知识库详情
   fetchRepoDetail();
-
+  //获取用户信息
+  getUserInfo();
   // 获取数据
   fetchFrequentDocs();
   fetchRecentDocs();
@@ -796,7 +846,7 @@ const fetchFolderList = async (): Promise<void> => {
 };
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .knowledge-base-system {
   display: flex;
   flex-direction: column;
@@ -1278,5 +1328,81 @@ const fetchFolderList = async (): Promise<void> => {
   text-align: center;
   padding: 15px 0;
   font-size: 14px;
+}
+/* 顶部导航栏样式调整 */
+.top-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 20px;
+  height: 60px;
+  background-color: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.logo {
+  font-size: 18px;
+  font-weight: bold;
+  color: #333;
+}
+
+.nav-items {
+  display: flex;
+  flex: 1;
+  justify-content: center;
+  margin: 0 20px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  padding: 0 15px;
+  cursor: pointer;
+  height: 60px;
+  transition: all 0.3s;
+}
+
+.nav-item i {
+  margin-right: 5px;
+}
+
+.nav-item.active {
+  color: var(--el-color-primary);
+  border-bottom: 2px solid var(--el-color-primary);
+}
+
+/* 用户信息样式 */
+.user-info {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.user-avatar {
+  margin-right: 8px;
+}
+
+.user-name {
+  font-size: 14px;
+  color: #333;
+  font-weight: 500;
+}
+
+/* 顶部操作栏布局调整 */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.page-info {
+  flex: 1;
+}
+
+.action-buttons {
+  display: flex;
+  align-items: center;
 }
 </style>
