@@ -14,10 +14,13 @@
           <span>{{ item.text }}</span>
         </div>
       </div>
-      <!-- 返回首页按钮 -->
-      <div class="nav-item home-btn" @click="goToHome">
-        <i class="fas fa-home"></i>
-        <span>返回首页</span>
+      <!-- 底部按钮容器 -->
+      <div class="bottom-buttons">
+        <!-- 返回首页按钮 -->
+        <div class="nav-item home-btn" @click="goToHome">
+          <i class="fas fa-home"></i>
+          <span>返回首页</span>
+        </div>
       </div>
     </div>
 
@@ -28,6 +31,7 @@
         <div class="page-info">
           <h1>{{ repoDetail ? repoDetail.title : '知识库' }}</h1>
           <div class="date">{{ currentDate }} {{ currentTime }}</div>
+          <div class="repo-name">当前你位于{{ repoDetail ? repoDetail.title : '未知知识库' }}知识库</div>
         </div>
         <div class="action-buttons">
           
@@ -838,6 +842,8 @@ const goToHome = (): void => {
   window.location.href = '/';
 };
 
+
+
 // 组件挂载时初始化
 onMounted(() => {
   // 更新日期时间
@@ -913,7 +919,7 @@ const fetchFolderList = async (): Promise<void> => {
 .side-nav {
   background: linear-gradient(180deg, #1a56db, #1e40af);
   color: white;
-  padding: 20px 0;
+  padding: 15px 0;
   display: flex;
   flex-direction: column;
   width: 220px;
@@ -927,7 +933,7 @@ const fetchFolderList = async (): Promise<void> => {
 .logo {
   font-size: 20px;
   font-weight: bold;
-  margin: 0 20px 30px 20px;
+  margin: 0 20px 15px 20px;
   text-align: center;
 }
 
@@ -936,15 +942,16 @@ const fetchFolderList = async (): Promise<void> => {
   flex-direction: column;
   flex: 1;
   margin: 0;
+  padding-top: 10px;
 }
 
 .nav-item {
-  padding: 12px 20px;
+  padding: 10px 20px;
   cursor: pointer;
   display: flex;
   align-items: center;
   transition: background-color 0.2s;
-  margin-bottom: 5px;
+  margin-bottom: 2px;
 }
 
 .nav-item i {
@@ -963,13 +970,21 @@ const fetchFolderList = async (): Promise<void> => {
   border-left: 3px solid white;
 }
 
-/* 左侧导航栏底部返回首页按钮 */
-.home-btn {
+/* 底部按钮容器 */
+.bottom-buttons {
   margin-top: auto;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
-  margin-bottom: 0;
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 左侧导航栏底部返回首页按钮 */
+.home-btn {
+  margin-top: 0;
   font-weight: 500;
 }
+
 
 /* 右上角用户信息样式 */
 .user-greeting {
@@ -1006,7 +1021,9 @@ const fetchFolderList = async (): Promise<void> => {
 /* 主内容区调整 */
 .main-content {
   flex: 1;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  height: 100vh;
 }
 
 /* 旧的顶部导航栏样式已被左侧导航栏替代 */
@@ -1043,6 +1060,17 @@ const fetchFolderList = async (): Promise<void> => {
 .date {
   color: #666;
   font-size: 14px;
+}
+
+.repo-name {
+  color: #1a56db;
+  font-size: 16px;
+  font-weight: 600;
+  margin-top: 8px;
+  background-color: #f0f5ff;
+  padding: 5px 10px;
+  border-radius: 4px;
+  display: inline-block;
 }
 
 .action-buttons {
@@ -1157,6 +1185,8 @@ const fetchFolderList = async (): Promise<void> => {
   display: grid;
   grid-template-columns: 1fr 300px;
   gap: 20px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
 }
 
 /* 左侧文档列表 */
@@ -1164,6 +1194,8 @@ const fetchFolderList = async (): Promise<void> => {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
 }
 
 .card {
@@ -1188,6 +1220,8 @@ const fetchFolderList = async (): Promise<void> => {
 
 .doc-list {
   padding: 10px 0;
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 .doc-item {
@@ -1220,6 +1254,8 @@ const fetchFolderList = async (): Promise<void> => {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
 }
 
 .sidebar-card {
@@ -1271,6 +1307,8 @@ const fetchFolderList = async (): Promise<void> => {
 
 .preview-list {
   padding: 10px 0;
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 .preview-item {
@@ -1410,6 +1448,8 @@ const fetchFolderList = async (): Promise<void> => {
 /* 目录列表样式 */
 .folder-list {
   margin-top: 10px;
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 .folder-item {
@@ -1464,6 +1504,7 @@ const fetchFolderList = async (): Promise<void> => {
   flex: 1;
   justify-content: center;
   margin: 0 20px;
+  margin-top: -250px; 
 }
 
 .nav-item {
@@ -1517,5 +1558,24 @@ const fetchFolderList = async (): Promise<void> => {
 .action-buttons {
   display: flex;
   align-items: center;
+}
+/* 自定义滚动条样式 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }
 </style>
