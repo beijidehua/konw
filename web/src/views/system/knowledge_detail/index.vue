@@ -31,7 +31,7 @@
         <div class="page-info">
           <h1>{{ repoDetail ? repoDetail.title : '知识库' }}</h1>
           <div class="date">{{ currentDate }} {{ currentTime }}</div>
-          <div class="repo-name">当前你位于{{ repoDetail ? repoDetail.title : '未知知识库' }}知识库</div>
+          <div class="repo-name">当前你位于{{ repoDetail ? repoDetail.name : '未知知识库' }}知识库</div>
         </div>
         <div class="action-buttons">
           
@@ -591,7 +591,7 @@ const confirmAddFolder = async (): Promise<void> => {
     // 使用创建知识详情API，将目录作为特殊类型的知识详情
     const data = {
       repo_id: repoId.value,
-      title: newFolder.value.name, // 修改name为title以匹配KnowledgeDetail接口
+      name: newFolder.value.name, 
       content: newFolder.value.description,
       creator: 1, // 当前用户ID，实际应从用户状态获取
       status: 'normal' as 'normal' | 'archived',
