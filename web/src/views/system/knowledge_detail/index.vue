@@ -58,7 +58,7 @@
             </div>
           </div>
 
-          <button class="btn btn-primary" @click="showUploadModal = true">
+          <button class="btn btn-primary" @click="openUploadModal">
             <i class="fas fa-upload"></i> 上传
           </button>
 
@@ -237,27 +237,70 @@
           <h3>上传文档</h3>
           <button class="close-btn" @click="showUploadModal = false">&times;</button>
         </div>
-        <div class="modal-body">
-          <div class="upload-area" @click="triggerFileInput">
-            <i class="fas fa-cloud-upload-alt"></i>
-            <p>将文件拖到此处，或<span>点击上传</span></p>
-            <input type="file" ref="fileInput" style="display: none;" @change="handleFileUpload">
-          </div>
-          <div class="form-actions">
-            <button class="btn btn-outline" @click="showUploadModal = false">取消</button>
-            <button class="btn btn-primary" @click="uploadDocument">开始上传</button>
-          </div>
-        </div>
+        <el-form :model="form_file" label-width="120px">
+          <el-form-item label="文件名称">
+            <el-input v-model="form_file.name" />
+          </el-form-item>
+          <el-form-item label="上传文件">
+            <el-upload
+              v-model:file-list="fileList"
+              class="upload-demo"
+              action=""
+              :http-request="uploadFile"
+            >  
+              <el-button type="primary">单击上传</el-button>
+              <template #tip>
+                <div class="el-upload tip">
+                  支持各种文档格式，单个文件不超过10MB
+                </div>
+              </template>
+            </el-upload>
+          </el-form-item>   
+          
+          <!-- 选择目录下拉框 -->
+          <el-form-item label="选择目录">
+            <el-select v-model="selectedFolderId" placeholder="请选择目录">
+              <el-option :value="0" label="根目录" />
+              <el-option 
+                v-for="folder in folderList" 
+                :key="folder.id" 
+                :value="folder.id"
+                :label="'　'.repeat(folder.dimension - 1) + (folder.title || folder.name)"
+              />
+            </el-select>
+          </el-form-item>
+          
+          <!-- 选择文档类型下拉框 -->
+          <el-form-item label="文档类型">
+            <el-select v-model="form_file.doc_type" placeholder="请选择文档类型">
+              <el-option
+                v-for="item in docTypeOptions"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
+            </el-select>
+          </el-form-item>
+          
+          <el-form-item>
+            <el-button type="default" @click="showUploadModal = false">取消</el-button>
+            <el-button type="primary" @click="submitDocs">开始上传</el-button>
+          </el-form-item>
+        </el-form>
+      </div>
       </div>
     </div>
-  </div>
+  
+
 </template>
 
 <script setup lang="ts">
 import { reactive, ref, onMounted, onUnmounted } from 'vue';
-import { detailApi, KnowledgeDetail } from './api';
+import { detailApi, KnowledgeDetail,documentApi } from './api';
 import { useRoute } from 'vue-router';
 import * as api from '../personal/api';
+import * as apiDoc from '../personal/api';
+import { ElMessage } from 'element-plus';
 
 // 定义缺失的类型和函数
 const dictionary = (type: string) => {
@@ -419,7 +462,49 @@ const newMarkdown = ref<NewDoc>({
 // 文件上传相关
 const fileInput = ref<HTMLInputElement | null>(null);
 const selectedFile = ref<File | null>(null);
+const selectedFolderId = ref<number>(0); // 选择的目录ID，默认为根目录
+const form = ref<{ name: string; file_url: string; file_id: string; file_name: string }>({ 
+  name: '', 
+  file_url: '', 
+  file_id: '', 
+  file_name: '' 
+});
+const fileList = ref([])
 
+// 打开上传模态框
+const openUploadModal = () => {
+  // 清空文件列表
+  fileList.value = []; 
+  // 重置表单值
+  form_file.name = '';
+  form_file.file = '';
+  form_file.doc_type = ''; // 重置为默认文档类型
+  // 重置选择的目录ID为根目录
+  selectedFolderId.value = 0;
+  // 重置form对象
+  form.value = {
+    name: '',
+    file_url: '',
+    file_id: '',
+    file_name: ''
+  };
+  // 打开模态框
+  showUploadModal.value = true;
+}
+//文档上传表单
+const form_file=reactive({
+  name: '', 
+  file: '',
+  doc_type:'' // 默认选择普通文档
+})
+
+// 文档类型选项
+const docTypeOptions = ref([
+  { value: '1', label: '产品文档' },
+  { value: '2', label: '技术文档' },
+  { value: '3', label: '培训文档' },
+
+])
 /**
  * 获取常用文档
  */
@@ -593,10 +678,10 @@ const confirmAddFolder = async (): Promise<void> => {
       repo_id: repoId.value,
       name: newFolder.value.name, 
       content: newFolder.value.description,
-      creator: 1, // 当前用户ID，实际应从用户状态获取
+      creator: konwledge_creator.value, // 当前用户ID，实际应从用户状态获取
       status: 'normal' as 'normal' | 'archived',
       repository_id: repoId.value, // 添加 repository_id 字段
-      master: 1, // 目录负责人ID
+      master: konwledge_creator.value, // 目录负责人ID
       parent_category_id: parentId, // 父级目录ID
       sort: 0, // 默认排序值
       dimension: dimension, // 目录深度
@@ -635,7 +720,7 @@ const confirmAddDocument = async (): Promise<void> => {
       repo_id: repoId.value,
       title: newDoc.value.title,
       content: newDoc.value.content,
-      creator: 1, // 当前用户ID，实际应从用户状态获取
+      creator: konwledge_creator.value, // 当前用户ID，实际应从用户状态获取
       status: 'normal' as 'normal' | 'archived'
     };
     
@@ -672,7 +757,7 @@ const confirmAddMarkdown = async (): Promise<void> => {
       repo_id: repoId.value,
       title: newMarkdown.value.title,
       content: newMarkdown.value.content,
-      creator: 1,
+      creator: konwledge_creator.value,
       status: 'normal' as 'normal' | 'archived'
     };
     
@@ -714,43 +799,61 @@ const handleFileUpload = (event: Event): void => {
   }
 };
 
-// 上传文档
-const uploadDocument = async (): Promise<void> => {
-  if (!selectedFile.value) {
-    alert('请先选择要上传的文件');
-    return;
-  }
-
-  try {
-    // 模拟文件上传成功后创建知识详情
-    // 实际项目中应先上传文件，然后用返回的URL创建知识详情
-    const data = {
-      repo_id: repoId.value,
-      title: selectedFile.value.name,
-      content: `上传的文件内容: ${selectedFile.value.name}`,
-      creator: 1,
-      status: 'normal' as 'normal' | 'archived'
-    };
-    
-    const res = await detailApi.createDetail(data);
-    
-    if (res.code === 2000) {
-      alert(`文档上传成功: ${selectedFile.value.name}`);
-      selectedFile.value = null;
-      showUploadModal.value = false;
-      
+// 覆盖文档默认上传行为
+const uploadFile=(file)=>{
+  form_file.file=file.file;
+}
+const docInfo={
+  name:'',
+  type_id:0,
+  master:1,
+  category:1,
+  repository_id:repoId.value,
+  details:'',
+  sort:0,
+  dimension:0,
+}
+//正式上传文档
+const submitDocs=async()=>{
+  let formdata=new FormData();
+  formdata.append('name',form_file.name);
+  formdata.append('file',form_file.file);
+  // 调用文件上传API
+  const res = await apiDoc.uploadAvatar(formdata);
+  // 处理上传结果到文档表
+  if (res.code === 2000) {
+    ElMessage.success(`文件上传成功: ${res.data.name}`);
+    // 保存文件信息到表单
+    docInfo.details = res.data.file_url;
+    docInfo.name = form_file.name;
+    docInfo.master=res.data.creator;
+    // docInfo.category_id=res.data.category_id;
+    docInfo.category=1;//TODO
+    // 添加文档类型
+    docInfo.type_id = parseInt(form_file.doc_type);
+    const resDoc = await documentApi.createDocument(docInfo);
+    if (resDoc.code === 2000) {
+      ElMessage.success(`文档创建成功: ${resDoc.data.name}`);
       // 刷新文档列表
-      fetchRecentDocs();
       fetchAllDocs();
+      // 关闭上传模态框
+      showUploadModal.value = false;
     } else {
-      console.error('上传文档失败:', res.msg);
-      alert(`上传文档失败: ${res.msg}`);
+      console.error('文档创建失败:', resDoc.msg);
+      ElMessage.error(`文档创建失败: ${resDoc.msg}`);
+      return false;
     }
-  } catch (error) {
-    console.error('上传文档出错:', error);
-    alert('上传文档失败，请重试');
+    // 如果用户没有输入文件名，使用上传文件的名称
+    if (!form_file.name) {
+      form_file.name = res.data.name;
+    }
+    return res.data;
+  } else {
+    console.error('文件上传失败:', res.msg);
+    ElMessage.error(`文件上传失败: ${res.msg}`);
+    return false;
   }
-};
+}
 
 // 申请权限
 const requestPermission = (permId: number): void => {
@@ -764,7 +867,7 @@ const getRepoIdFromUrl = (): void => {
     repoId.value = Number(route.params.id);
   }
 };
-
+const konwledge_creator=ref(1);
 // 获取知识库详情
 const fetchRepoDetail = async (): Promise<void> => {
   if (!repoId.value) return; // 如果没有有效的ID，则不发送请求
@@ -773,6 +876,7 @@ const fetchRepoDetail = async (): Promise<void> => {
     const res = await detailApi.getDetail(repoId.value);
     if (res.code === 2000 && res.data && Array.isArray(res.data) && res.data.length > 0) {
       repoDetail.value = res.data[0];
+      konwledge_creator.value=res.data[0].creator;
       document.title = `${res.data[0].title || '知识库'} - 知识库系统`;
     } else if (res.code === 2000 && res.data) {
       // 处理直接返回对象的情况

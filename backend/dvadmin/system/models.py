@@ -992,3 +992,143 @@ class Category(models.Model):
 
         # 2. 调用父类 save 方法，完成数据入库
         super().save(*args, **kwargs)
+
+
+#文档
+class MmDocument(models.Model):
+    """
+    文档表 Model，对应数据库中的 mm_document 表
+    用于存储各类文档信息，关联目录表，支持文本/非文本类型文档，包含冗余字段优化查询
+    """
+    # 1. 文档唯一ID：对应表中 id（Django 主键默认自增，无需额外指定 AUTOINCREMENT）
+    id = models.IntegerField(primary_key=True, verbose_name="文档ID")
+
+    # 2. 文档名称：对应表中 name（非空约束，最大长度设为255以满足大部分业务场景）
+    name = models.CharField(
+        max_length=255,
+        null=False,
+        blank=False,  # 表单层面不允许空值，与数据库约束一致
+        verbose_name="文档名称"
+    )
+
+    # 3. 文档类型ID：对应表中 type_id（非空，关联字典表sys_dict_data，暂存ID）
+    # 注：若项目中存在字典表Model（如SysDictData），建议改为 ForeignKey 强关联
+    type_id = models.IntegerField(
+        null=False,
+        blank=False,
+        verbose_name="文档类型ID"
+    )
+
+    # 4. 所属目录ID：对应表中 category_id（非空，关联mm_category表，存ID）
+    # 此处用 ForeignKey 强关联目录表，确保目录存在性（避免无效目录ID）
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.PROTECT,  # 若关联目录被删除，禁止删除文档（保护数据完整性）
+        null=False,
+        blank=False,
+        related_name="documents",  # 便于通过目录查询文档（如 category.documents.all()）
+        verbose_name="所属目录"
+    )
+
+    # 5. 文档负责人ID：对应表中 master（非空，关联sys_user表，暂存ID）
+    # 注：若项目中存在用户表Model（如Users），建议改为 ForeignKey 强关联
+    master = models.IntegerField(
+        null=False,
+        blank=False,
+        verbose_name="负责人ID"
+    )
+
+    # 6. 更新时间：对应表中 update_time（默认当前时间，更新时自动刷新）
+    # auto_now=True 表示每次 save() 时自动更新为当前时间，无需手动维护
+    update_time = models.DateTimeField(
+        null=False,
+        blank=False,
+        auto_now=True,
+        verbose_name="更新时间"
+    )
+
+    # 7. 文档内容路径：对应表中 details（允许为空，存储MinIO等文件存储的路径）
+    # 最大长度设为512，满足长路径需求（如包含Bucket、文件夹层级的路径）
+    details = models.CharField(
+        max_length=512,
+        null=True,
+        blank=True,
+        verbose_name="文档内容路径（MinIO）"
+    )
+
+    # 8. 文档文本内容：对应表中 detail_text（允许为空，仅存储文本类文档内容）
+    # 用 TextField 存储大文本（无长度限制，满足长文档需求）
+    detail_text = models.TextField(
+        null=True,
+        blank=True,
+        verbose_name="文档文本内容"
+    )
+
+    # 9. 排序值：对应表中 sort（非空，默认0，同目录下按此值升序排列）
+    sort = models.IntegerField(
+        null=False,
+        blank=False,
+        default=0,
+        verbose_name="排序值"
+    )
+
+    # 10. 所属目录深度：对应表中 dimension（非空，最小值1，冗余字段，与目录表一致）
+    # 冗余存储目的：减少查询时关联目录表的开销，通过信号/重写save自动维护
+    dimension = models.IntegerField(
+        null=False,
+        blank=False,
+        validators=[MinValueValidator(1)],  # 强制最小值为1，对应表中 CHECK 约束
+        verbose_name="所属目录深度（冗余）"
+    )
+
+    # 11. 所属目录路径：对应表中 tree_path（允许为空，冗余字段，与目录表一致）
+    # 冗余存储目的：快速筛选某目录及其子目录下的所有文档，无需递归查询
+    tree_path = models.CharField(
+        max_length=512,
+        null=True,
+        blank=True,
+        verbose_name="所属目录路径（冗余）"
+    )
+
+    class Meta:
+        """
+        Model 元数据配置，控制数据库表名、排序、索引等
+        """
+        # 强制指定表名为 "mm_document"，与原始表结构完全一致
+        db_table = "mm_document"
+        # 默认排序：同目录下按 sort 升序，更新时间降序（新文档优先）
+        ordering = ["category", "sort", "-update_time"]
+        # 索引优化：针对高频查询场景添加索引，提升性能
+        indexes = [
+            # 按“目录ID+排序值”查询（同目录下文档排序）
+            models.Index(fields=["category", "sort"]),
+            # 按“负责人ID”查询（筛选指定负责人的文档）
+            models.Index(fields=["master"]),
+            # 按“文档类型ID”查询（筛选指定类型的文档）
+            models.Index(fields=["type_id"]),
+            # 按“目录路径”查询（模糊匹配某目录及其子目录下的文档，如 tree_path LIKE "1,2%"）
+            models.Index(fields=["tree_path"]),
+        ]
+        # 后台管理界面显示名称（中文友好）
+        verbose_name = "文档"
+        verbose_name_plural = "文档列表"
+        # 唯一约束：同目录下不允许存在同名文档（避免重复）
+        unique_together = ["category", "name"]
+
+    def __str__(self):
+        """
+        模型实例的字符串表示（后台管理界面显示“目录名-文档名”，便于识别）
+        """
+        return f"{self.category.name} - {self.name}"
+
+    def save(self, *args, **kwargs):
+        """
+        重写保存方法：自动维护冗余字段（dimension、tree_path）
+        确保与关联目录的字段完全一致，避免手动维护错误
+        """
+        # 从关联的目录表中同步“目录深度”和“目录路径”
+        self.dimension = self.category.dimension
+        self.tree_path = self.category.tree_path
+
+        # 调用父类 save 方法，完成数据入库
+        super().save(*args, **kwargs)

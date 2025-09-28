@@ -25,6 +25,7 @@ from dvadmin.system.views.download_center import DownloadCenterViewSet
 from dvadmin.system.views.knowledge_edit import MmRepositoryViewSet
 
 from dvadmin.system.views.knowledge_category import CategoryViewSet
+from dvadmin.system.views.doc import MmDocumentViewSet
 
 system_url = routers.SimpleRouter()
 system_url.register(r'menu', MenuViewSet)
@@ -46,6 +47,7 @@ system_url.register(r'login_log', LoginLogViewSet)
 system_url.register(r'download_center', DownloadCenterViewSet)
 system_url.register(r'knowledge_edit', MmRepositoryViewSet)
 system_url.register(r'knowledge_category', CategoryViewSet)
+system_url.register(r'document', MmDocumentViewSet)
 # 知识库类型下拉选项接口：/api/system/dict/repo-types/
 # system_url.register(r"dictionary", DictRepoTypeViewSet)
 # # 知识库CRUD接口：/api/system/knowledge/
