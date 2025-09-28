@@ -518,8 +518,8 @@ const fetchFrequentDocs = async (): Promise<void> => {
       ordering: '-views' // 按浏览量排序
     };
     
+    // const res = await detailApi.getDetailList(params);
     const res = await detailApi.getDetailList(params);
-    
     // 适配后端响应格式
     if (res.code === 2000) {
       // 检查 res.data 是否为数组
