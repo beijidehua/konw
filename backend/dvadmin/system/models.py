@@ -953,17 +953,9 @@ class Category(models.Model):
         """
         # 数据库表名：强制指定为 "category"，与原始表结构一致（避免 Django 自动加后缀）
         db_table = "category"
-        # 默认排序：同知识库、同父目录下，按 sort 升序排列（符合业务逻辑）
-        ordering = ["repository_id", "parent_category", "sort"]
-        # 索引：为高频查询字段添加索引，提升查询效率
-        indexes = [
-            # 按“知识库ID+父目录ID”查询子目录（最常用场景）
-            models.Index(fields=["repository_id", "parent_category"]),
-            # 按“负责人ID”查询目录
-            models.Index(fields=["master"]),
-            # 按“目录深度”查询（如筛选所有顶级目录：dimension=1）
-            models.Index(fields=["dimension"]),
-        ]
+        ordering = ["repository_id", "parent_category_id", "sort"]  # 仅依赖自身/无依赖字段
+        indexes = [models.Index(fields=["repository_id", "parent_category_id"])]
+
         # 后台管理界面显示的模型名称（中文友好）
         verbose_name = "目录"
         verbose_name_plural = "目录列表"
@@ -1091,28 +1083,17 @@ class MmDocument(models.Model):
     )
 
     class Meta:
-        """
-        Model 元数据配置，控制数据库表名、排序、索引等
-        """
-        # 强制指定表名为 "mm_document"，与原始表结构完全一致
         db_table = "mm_document"
-        # 默认排序：同目录下按 sort 升序，更新时间降序（新文档优先）
-        ordering = ["category", "sort", "-update_time"]
-        # 索引优化：针对高频查询场景添加索引，提升性能
+        # 用 category_id（自身存储的外键ID，整数类型）替代 category（关联模型对象）
+        ordering = ["category_id", "sort", "-update_time"]
+        # 同步更新索引：用 category_id 替代 category，确保索引与排序字段一致
         indexes = [
-            # 按“目录ID+排序值”查询（同目录下文档排序）
-            models.Index(fields=["category", "sort"]),
-            # 按“负责人ID”查询（筛选指定负责人的文档）
+            models.Index(fields=["category_id", "sort"]),  # 优化同目录下文档排序的查询效率
             models.Index(fields=["master"]),
-            # 按“文档类型ID”查询（筛选指定类型的文档）
             models.Index(fields=["type_id"]),
-            # 按“目录路径”查询（模糊匹配某目录及其子目录下的文档，如 tree_path LIKE "1,2%"）
-            models.Index(fields=["tree_path"]),
         ]
-        # 后台管理界面显示名称（中文友好）
         verbose_name = "文档"
         verbose_name_plural = "文档列表"
-        # 唯一约束：同目录下不允许存在同名文档（避免重复）
         unique_together = ["category", "name"]
 
     def __str__(self):
