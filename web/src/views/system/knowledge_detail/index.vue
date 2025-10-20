@@ -908,8 +908,12 @@ const requestPermission = (permId: number): void => {
 // 从URL获取知识库ID
 const getRepoIdFromUrl = (): void => {
   const route = useRoute();
-  if (route.params.id) {
-    repoId.value = Number(route.params.id);
+  // 从 query 中获取 id，注意可能为 undefined 或非数字
+  if (route.query.id) {
+    repoId.value = Number(route.query.id); // 转换为数字
+  } else {
+    // 处理参数不存在的情况（如默认值或提示）
+    repoId.value = 1; // 或其他默认值
   }
 };
 

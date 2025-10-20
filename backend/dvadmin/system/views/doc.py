@@ -98,7 +98,7 @@ class MmDocumentCreateUpdateSerializer(CustomModelSerializer):
     class Meta:
         model = MmDocument
         # 创建/更新时允许传入的字段（自动维护字段无需前端处理）
-        fields = ["name", "type_id", "category", "master", "details", "detail_text", "sort"]
+        fields = ["name", "type_id", "category_id", "master", "details", "detail_text", "sort"]
 
     def validate(self, data):
         """数据校验：确保同目录下无同名文档（符合模型unique_together约束）"""

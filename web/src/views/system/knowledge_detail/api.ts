@@ -227,7 +227,13 @@ export const documentApi = {
       method: 'GET',
       params
     }),
-
+    
+  getDocumentListByRepoId: (params: DocumentParams) =>
+    request({
+      url: '/api/system/document/getDocumentListByRepoId/',
+      method: 'GET',
+      params
+    }),
   // 2. 获取单个文档详情
   getDocument: (id: number) =>
     request({
