@@ -27,7 +27,7 @@ class MmDocumentSerializer(CustomModelSerializer):
     # 自定义序列化字段：关联表数据转义（提升前端展示友好性）
     category_name = serializers.SerializerMethodField()  # 所属目录名称
     master_name = serializers.SerializerMethodField()  # 负责人姓名
-    type_label = serializers.SerializerMethodField()  # 文档类型文本（需关联字典表）
+    # type_label = serializers.SerializerMethodField()  # 文档类型文本（需关联字典表）
     category_path = serializers.SerializerMethodField()  # 所属目录完整路径（冗余字段解析）
 
     def get_category_name(self, obj: MmDocument):
@@ -42,15 +42,15 @@ class MmDocumentSerializer(CustomModelSerializer):
         except Users.DoesNotExist:
             return "未知"
 
-    def get_type_label(self, obj: MmDocument):
-        """获取文档类型文本（需关联项目字典表，此处为示例逻辑，需根据实际字典表调整）"""
-        # 假设项目中存在文档类型字典表（如SysDictData，dict_type="document_type"）
-        try:
-            from dvadmin.system.models import SysDictData
-            dict_data = SysDictData.objects.get(dict_type="document_type", dict_value=str(obj.type_id))
-            return dict_data.dict_label
-        except (ImportError, SysDictData.DoesNotExist):
-            return f"类型ID:{obj.type_id}"  # 无字典表时返回原始ID
+    # def get_type_label(self, obj: MmDocument):
+    #     """获取文档类型文本（需关联项目字典表，此处为示例逻辑，需根据实际字典表调整）"""
+    #     # 假设项目中存在文档类型字典表（如SysDictData，dict_type="document_type"）
+    #     try:
+    #         from dvadmin.system.models import SysDictData
+    #         dict_data = SysDictData.objects.get(dict_type="document_type", dict_value=str(obj.type_id))
+    #         return dict_data.dict_label
+    #     except (ImportError, SysDictData.DoesNotExist):
+    #         return f"类型ID:{obj.type_id}"  # 无字典表时返回原始ID
 
     def get_category_path(self, obj: MmDocument):
         """解析目录路径冗余字段，返回完整目录路径（如“顶级目录 > 子目录1 > 子目录2”）"""
@@ -135,7 +135,7 @@ class MmDocumentViewSet(CustomModelViewSet):
     update_serializer_class = MmDocumentCreateUpdateSerializer
     import_serializer_class = MmDocumentImportSerializer
     # 筛选字段（支持按多维度快速筛选）
-    filter_fields = ["name", "id", "type_id", "category", "master", "dimension", "sort"]
+    filter_fields = ["name", "id", "type_id", "category_id", "master", "dimension", "sort"]
     # 搜索字段（支持按文档名、目录名模糊搜索）
     search_fields = ["name", "category__name", "detail_text"]  # 支持跨表搜索目录名
     # Excel导入字段映射（用于导入时的字段校验提示）

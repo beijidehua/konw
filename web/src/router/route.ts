@@ -194,5 +194,15 @@ export const staticRoutes: Array<RouteRecordRaw> = [
             systemType: 'repository' // 属于单个知识库系统
         },
     },
+    {
+        // （相对父路由，完整路径是 /repository/:kbId/overview）
+        path: '/knowledge_detail/DocList',
+        name: 'DocList',
+        component: () => import('/@/views/system/DocList/index.vue'),
+        meta: {
+            title: '文档',
+//             systemType: 'repository' // 属于单个知识库系统
+        },
+}
 
 ];
